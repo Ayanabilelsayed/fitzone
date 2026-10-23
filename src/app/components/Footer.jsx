@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -106,14 +105,13 @@ export default function Footer() {
               6:00 AM – 10:00 PM
             </p>
           </div>
-
         </div>
       </div>
 
       {/* Bottom Footer */}
       <div className="mx-auto mt-12 flex max-w-7xl flex-col items-center justify-between gap-4 border-t border-[var(--border)] px-4 pt-6 text-center sm:flex-row sm:px-6 sm:text-left lg:px-8">
         <p className="text-xs text-[var(--text-muted)]">
-          © {new Date().getFullYear()} FITZONE. All rights reserved.
+          © 2026 FITZONE. All rights reserved.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">

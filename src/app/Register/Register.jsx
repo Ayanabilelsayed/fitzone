@@ -15,13 +15,17 @@ export default function RegisterPage() {
     acceptTerms: false,
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
 
-    setFormData({
-      ...formData,
+    setFormData((previous) => ({
+      ...previous,
       [name]: type === "checkbox" ? checked : value,
-    });
+    }));
   }
 
   async function handleSubmit(e) {
@@ -37,6 +41,11 @@ export default function RegisterPage() {
 
     if (fullName.trim() === "") {
       alert("Please enter your full name");
+      return;
+    }
+
+    if (!email.trim()) {
+      alert("Please enter your email address");
       return;
     }
 
@@ -70,6 +79,8 @@ export default function RegisterPage() {
       return;
     }
 
+    setIsLoading(true);
+
     try {
       const response = await fetch(
         "http://localhost:5000/api/auth/register",
@@ -95,18 +106,29 @@ export default function RegisterPage() {
         return;
       }
 
-      // Save the name returned by the backend
-      localStorage.setItem("userName", data.user.full_name);
+      // Save user information for the Header
+      if (data.user) {
+        sessionStorage.setItem(
+          "fitzoneUser",
+          JSON.stringify(data.user)
+        );
 
-      // Notify the Header that the user name has changed
-      window.dispatchEvent(new Event("user-name-change"));
+        window.dispatchEvent(new Event("fitzone-auth-changed"));
+      } else {
+        // Registration succeeded, but the API did not return user data.
+        // The user can sign in to load their account information.
+        alert("Account created successfully! Please sign in.");
+        router.push("/login");
+        return;
+      }
 
       alert("Account created successfully!");
-
       router.push("/project");
     } catch (error) {
       console.error("Registration error:", error);
       alert("Could not connect to the server. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -189,17 +211,63 @@ export default function RegisterPage() {
               Password
             </label>
 
-            <input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="Create a password"
-              value={formData.password}
-              onChange={handleChange}
-              autoComplete="new-password"
-              required
-              className="w-full rounded-lg border border-white/15 bg-[#141a17] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-[#C8FF3D] focus:ring-1 focus:ring-[#C8FF3D]"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Create a password"
+                value={formData.password}
+                onChange={handleChange}
+                autoComplete="new-password"
+                required
+                className="w-full rounded-lg border border-white/15 bg-[#141a17] py-2.5 pl-4 pr-12 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-[#C8FF3D] focus:ring-1 focus:ring-[#C8FF3D]"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((previous) => !previous)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-3 flex items-center justify-center text-gray-400 transition hover:text-[#C8FF3D] focus:outline-none focus:text-[#C8FF3D]"
+              >
+                {showPassword ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 3l18 18" />
+                    <path d="M10.6 10.6a2 2 0 002.8 2.8" />
+                    <path d="M9.9 5.2A11.3 11.3 0 0112 5c5.5 0 9 7 9 7a15.7 15.7 0 01-3.1 3.9" />
+                    <path d="M6.2 6.2C3.9 7.7 2 12 2 12s3.5 7 10 7a10.8 10.8 0 004.1-.8" />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
 
             <p className="mt-1 text-xs text-gray-500">
               At least 8 characters, including uppercase, lowercase, and a
@@ -216,17 +284,69 @@ export default function RegisterPage() {
               Confirm Password
             </label>
 
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              placeholder="Confirm your password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              autoComplete="new-password"
-              required
-              className="w-full rounded-lg border border-white/15 bg-[#141a17] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-[#C8FF3D] focus:ring-1 focus:ring-[#C8FF3D]"
-            />
+            <div className="relative">
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Confirm your password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                autoComplete="new-password"
+                required
+                className="w-full rounded-lg border border-white/15 bg-[#141a17] py-2.5 pl-4 pr-12 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-[#C8FF3D] focus:ring-1 focus:ring-[#C8FF3D]"
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowConfirmPassword((previous) => !previous)
+                }
+                aria-label={
+                  showConfirmPassword
+                    ? "Hide confirm password"
+                    : "Show confirm password"
+                }
+                aria-pressed={showConfirmPassword}
+                className="absolute inset-y-0 right-3 flex items-center justify-center text-gray-400 transition hover:text-[#C8FF3D] focus:outline-none focus:text-[#C8FF3D]"
+              >
+                {showConfirmPassword ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 3l18 18" />
+                    <path d="M10.6 10.6a2 2 0 002.8 2.8" />
+                    <path d="M9.9 5.2A11.3 11.3 0 0112 5c5.5 0 9 7 9 7a15.7 15.7 0 01-3.1 3.9" />
+                    <path d="M6.2 6.2C3.9 7.7 2 12 2 12s3.5 7 10 7a10.8 10.8 0 004.1-.8" />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Terms and Conditions */}
@@ -254,7 +374,7 @@ export default function RegisterPage() {
               </Link>{" "}
               and{" "}
               <Link
-                href="/privacy"
+                href="/terms#privacy"
                 className="text-[#C8FF3D] hover:underline"
               >
                 Privacy Policy
@@ -266,9 +386,10 @@ export default function RegisterPage() {
           {/* Submit */}
           <button
             type="submit"
-            className="w-full rounded-lg bg-[#C8FF3D] py-3 font-bold text-[#0b0f0d] transition hover:bg-[#b5eb2e] active:scale-[0.98]"
+            disabled={isLoading}
+            className="w-full rounded-lg bg-[#C8FF3D] py-3 font-bold text-[#0b0f0d] transition hover:bg-[#b5eb2e] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Create Account
+            {isLoading ? "Creating Account..." : "Create Account"}
           </button>
         </form>
 

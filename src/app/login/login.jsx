@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -10,6 +9,7 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -45,11 +45,16 @@ export default function Login() {
         return;
       }
 
-      // Save basic user information for the current browser session.
-      // This is not an authentication token or a secure session.
-      if (remember) {
-        sessionStorage.setItem("fitzoneUser", JSON.stringify(data.user));
+      if (!data.user) {
+        alert("Login succeeded, but user information was not returned.");
+        return;
       }
+
+      // Save user information for the Header
+      sessionStorage.setItem("fitzoneUser", JSON.stringify(data.user));
+
+      // Notify the Header that the user has logged in
+      window.dispatchEvent(new Event("fitzone-auth-changed"));
 
       alert("Login successful!");
 
@@ -128,17 +133,63 @@ export default function Login() {
               Password
             </label>
 
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              placeholder="Enter your password"
-              required
-              className="w-full rounded-xl border border-[#2A352F] bg-[#1D2621] px-4 py-3 text-sm text-white outline-none transition placeholder:text-[#A5B0A8] focus:border-[#C8FF3D] focus:ring-1 focus:ring-[#C8FF3D]"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                required
+                className="w-full rounded-xl border border-[#2A352F] bg-[#1D2621] px-4 py-3 pr-12 text-sm text-white outline-none transition placeholder:text-[#A5B0A8] focus:border-[#C8FF3D] focus:ring-1 focus:ring-[#C8FF3D]"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((previous) => !previous)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-3 flex items-center justify-center text-[#A5B0A8] transition hover:text-[#C8FF3D] focus:outline-none focus:text-[#C8FF3D]"
+              >
+                {showPassword ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="21"
+                    height="21"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 3l18 18" />
+                    <path d="M10.6 10.6a2 2 0 002.8 2.8" />
+                    <path d="M9.9 5.2A11.3 11.3 0 0112 5c5.5 0 9 7 9 7a15.7 15.7 0 01-3.1 3.9" />
+                    <path d="M6.2 6.2C3.9 7.7 2 12 2 12s3.5 7 10 7a10.8 10.8 0 004.1-.8" />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="21"
+                    height="21"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
 
             <div className="mt-2 text-right">
               <Link
