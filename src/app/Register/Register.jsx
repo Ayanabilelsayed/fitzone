@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function RegisterPage() {
-    const router = useRouter();
+  const router = useRouter();
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -23,88 +24,91 @@ export default function RegisterPage() {
     });
   }
 
+  async function handleSubmit(e) {
+    e.preventDefault();
 
-  
-async function handleSubmit(e) {
-  e.preventDefault();
+    const {
+      fullName,
+      email,
+      password,
+      confirmPassword,
+      acceptTerms,
+    } = formData;
 
-  const {
-    fullName,
-    email,
-    password,
-    confirmPassword,
-    acceptTerms,
-  } = formData;
-
-  if (fullName.trim() === "") {
-    alert("Please enter your full name");
-    return;
-  }
-
-  if (password.length < 8) {
-    alert("Password must be at least 8 characters long");
-    return;
-  }
-
-  if (!/[A-Z]/.test(password)) {
-    alert("Password must contain at least one uppercase letter");
-    return;
-  }
-
-  if (!/[a-z]/.test(password)) {
-    alert("Password must contain at least one lowercase letter");
-    return;
-  }
-
-  if (!/[0-9]/.test(password)) {
-    alert("Password must contain at least one number");
-    return;
-  }
-
-  if (password !== confirmPassword) {
-    alert("Passwords do not match");
-    return;
-  }
-
-  if (!acceptTerms) {
-    alert("Please accept the terms and conditions");
-    return;
-  }
-
-  try {
-    const response = await fetch(
-      "http://localhost:5000/api/auth/register",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fullName,
-          email,
-          password,
-          confirmPassword,
-          termsAccepted: acceptTerms,
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      alert(data.message || "Registration failed");
+    if (fullName.trim() === "") {
+      alert("Please enter your full name");
       return;
     }
 
-    alert("Account created successfully!");
-    router.push("/project");
-  } catch (error) {
-    console.error("Registration error:", error);
-    alert("Could not connect to the server. Please try again.");
+    if (password.length < 8) {
+      alert("Password must be at least 8 characters long");
+      return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      alert("Password must contain at least one uppercase letter");
+      return;
+    }
+
+    if (!/[a-z]/.test(password)) {
+      alert("Password must contain at least one lowercase letter");
+      return;
+    }
+
+    if (!/[0-9]/.test(password)) {
+      alert("Password must contain at least one number");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+
+    if (!acceptTerms) {
+      alert("Please accept the terms and conditions");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/auth/register",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fullName: fullName.trim(),
+            email: email.trim(),
+            password,
+            confirmPassword,
+            termsAccepted: acceptTerms,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Registration failed");
+        return;
+      }
+
+      // Save the name returned by the backend
+      localStorage.setItem("userName", data.user.full_name);
+
+      // Notify the Header that the user name has changed
+      window.dispatchEvent(new Event("user-name-change"));
+
+      alert("Account created successfully!");
+
+      router.push("/project");
+    } catch (error) {
+      console.error("Registration error:", error);
+      alert("Could not connect to the server. Please try again.");
+    }
   }
-}
-
-
 
   return (
     <main
@@ -262,7 +266,6 @@ async function handleSubmit(e) {
           {/* Submit */}
           <button
             type="submit"
-
             className="w-full rounded-lg bg-[#C8FF3D] py-3 font-bold text-[#0b0f0d] transition hover:bg-[#b5eb2e] active:scale-[0.98]"
           >
             Create Account
