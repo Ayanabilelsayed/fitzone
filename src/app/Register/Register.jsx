@@ -23,55 +23,88 @@ export default function RegisterPage() {
     });
   }
 
-  function handleSubmit(e) {
-    e.preventDefault();
 
-    const {
-      fullName,
-      email,
-      password,
-      confirmPassword,
-      acceptTerms,
-    } = formData;
+  
+async function handleSubmit(e) {
+  e.preventDefault();
 
-    if (fullName.trim() === "") {
-      alert("Please enter your full name");
-      return;
-    }
+  const {
+    fullName,
+    email,
+    password,
+    confirmPassword,
+    acceptTerms,
+  } = formData;
 
-    if (password.length < 8) {
-      alert("Password must be at least 8 characters long");
-      return;
-    }
-
-    if (!/[A-Z]/.test(password)) {
-      alert("Password must contain at least one uppercase letter");
-      return;
-    }
-
-    if (!/[a-z]/.test(password)) {
-      alert("Password must contain at least one lowercase letter");
-      return;
-    }
-
-    if (!/[0-9]/.test(password)) {
-      alert("Password must contain at least one number");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      alert("Passwords do not match");
-      return;
-    }
-
-    if (!acceptTerms) {
-      alert("Please accept the terms and conditions");
-      return;
-    }
-    router.push("/Home");
-    //////////////////////////////////////// Temporary until the backend is connected
-    
+  if (fullName.trim() === "") {
+    alert("Please enter your full name");
+    return;
   }
+
+  if (password.length < 8) {
+    alert("Password must be at least 8 characters long");
+    return;
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    alert("Password must contain at least one uppercase letter");
+    return;
+  }
+
+  if (!/[a-z]/.test(password)) {
+    alert("Password must contain at least one lowercase letter");
+    return;
+  }
+
+  if (!/[0-9]/.test(password)) {
+    alert("Password must contain at least one number");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    alert("Passwords do not match");
+    return;
+  }
+
+  if (!acceptTerms) {
+    alert("Please accept the terms and conditions");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      "http://localhost:5000/api/auth/register",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName,
+          email,
+          password,
+          confirmPassword,
+          termsAccepted: acceptTerms,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.message || "Registration failed");
+      return;
+    }
+
+    alert("Account created successfully!");
+    router.push("/Home");
+  } catch (error) {
+    console.error("Registration error:", error);
+    alert("Could not connect to the server. Please try again.");
+  }
+}
+
+
 
   return (
     <main
