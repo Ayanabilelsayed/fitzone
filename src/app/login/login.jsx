@@ -1,43 +1,66 @@
+
 "use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-
-
 export default function Login() {
-  
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
-  
+  const [isLoading, setIsLoading] = useState(false);
 
+  async function handleSubmit(event) {
+    event.preventDefault();
 
-  function handleEmailChange(event) {
-    setEmail(event.target.value);
-  }
+    if (!email.trim() || !password) {
+      alert("Please fill in all fields");
+      return;
+    }
 
-   function handlePasswordChange(event) {
-    setPassword(event.target.value);
-  }
-  function handleRememberChange(event) {
-     if (event.target.checked) {
-      setRemember(true);
-    } else {
-      setRemember(false);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: email.trim(),
+            password,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Login failed");
+        return;
+      }
+
+      // Save basic user information for the current browser session.
+      // This is not an authentication token or a secure session.
+      if (remember) {
+        sessionStorage.setItem("fitzoneUser", JSON.stringify(data.user));
+      }
+
+      alert("Login successful!");
+
+      router.push("/project");
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("Could not connect to the server. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   }
-
-  function handleSubmit(event) {
-  event.preventDefault();
-
-  if (email.trim() === "" || password === "") {
-    alert("Please fill in all fields");
-    return;
-  }
-
-  ///////////////////////////// TODO: Connect to the Backend Login API
-}
-
 
   return (
     <main
@@ -52,7 +75,7 @@ export default function Login() {
       <div className="absolute inset-0 bg-black/60" />
 
       {/* Login container */}
-      <section className="relative shadow-[0_0_30px_rgba(200,255,61,0.12),0_12px_40px_rgba(0,0,0,0.4)] z-10 mx-auto w-full max-w-md rounded-2xl border border-white/20 bg-[#0b0f0d]/95 p-6 text-white backdrop-blur-md sm:p-8">
+      <section className="relative z-10 mx-auto w-full max-w-md rounded-2xl border border-white/20 bg-[#0b0f0d]/95 p-6 text-white shadow-[0_0_30px_rgba(200,255,61,0.12),0_12px_40px_rgba(0,0,0,0.4)] backdrop-blur-md sm:p-8">
         {/* Logo */}
         <Link
           href="/"
@@ -87,8 +110,8 @@ export default function Login() {
               id="email"
               name="email"
               type="email"
-              value ={email}
-              onChange={handleEmailChange}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
               autoComplete="email"
               placeholder="you@example.com"
               required
@@ -108,12 +131,11 @@ export default function Login() {
             <input
               id="password"
               name="password"
-              value ={password}
-              onChange={handlePasswordChange}
               type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
               placeholder="Enter your password"
-              minLength={8}
               required
               className="w-full rounded-xl border border-[#2A352F] bg-[#1D2621] px-4 py-3 text-sm text-white outline-none transition placeholder:text-[#A5B0A8] focus:border-[#C8FF3D] focus:ring-1 focus:ring-[#C8FF3D]"
             />
@@ -133,9 +155,8 @@ export default function Login() {
             <input
               type="checkbox"
               name="remember"
-              checked={remember}  
-              onChange={handleRememberChange}
-            
+              checked={remember}
+              onChange={(event) => setRemember(event.target.checked)}
               className="h-4 w-4 accent-[#C8FF3D]"
             />
             Remember me
@@ -144,10 +165,10 @@ export default function Login() {
           {/* Submit */}
           <button
             type="submit"
-            onClick={handleSubmit}
-            className="w-full rounded-xl bg-[#C8FF3D] px-5 py-3.5 font-black uppercase tracking-wider text-[#0B0F0D] transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#C8FF3D] focus:ring-offset-2 focus:ring-offset-[#141A17]"
+            disabled={isLoading}
+            className="w-full rounded-xl bg-[#C8FF3D] px-5 py-3.5 font-black uppercase tracking-wider text-[#0B0F0D] transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#C8FF3D] focus:ring-offset-2 focus:ring-offset-[#141A17] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Sign In →
+            {isLoading ? "Signing In..." : "Sign In →"}
           </button>
         </form>
 

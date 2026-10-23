@@ -97,7 +97,7 @@ async function handleSubmit(e) {
     }
 
     alert("Account created successfully!");
-    router.push("/Home");
+    router.push("/project");
   } catch (error) {
     console.error("Registration error:", error);
     alert("Could not connect to the server. Please try again.");
