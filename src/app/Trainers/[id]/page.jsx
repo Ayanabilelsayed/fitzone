@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { apiRequest } from "@/lib/api";
 
-export default function TrainerDetailsPage() {
+function TrainerDetailsContent() {
   const params = useParams();
   const id = params.id;
 
@@ -22,7 +22,6 @@ export default function TrainerDetailsPage() {
         setError("");
 
         const data = await apiRequest(`/api/trainers/${id}`);
-
         setTrainer(data.trainer);
       } catch (err) {
         console.error("Error fetching trainer:", err);
@@ -113,19 +112,13 @@ export default function TrainerDetailsPage() {
                 <p className="text-sm text-[var(--text-muted)]">
                   Experience
                 </p>
-
-                <p className="mt-1 font-bold">
-                  {trainer.experience}
-                </p>
+                <p className="mt-1 font-bold">{trainer.experience}</p>
               </div>
             )}
 
             {trainer.bio && (
               <div className="mt-6">
-                <h2 className="text-xl font-bold">
-                  About the Trainer
-                </h2>
-
+                <h2 className="text-xl font-bold">About the Trainer</h2>
                 <p className="mt-3 leading-7 text-[var(--text-secondary)]">
                   {trainer.bio}
                 </p>
@@ -135,5 +128,19 @@ export default function TrainerDetailsPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function TrainerDetailsPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[var(--background)] text-[var(--text)]">
+          Loading trainer...
+        </main>
+      }
+    >
+      <TrainerDetailsContent />
+    </Suspense>
   );
 }
