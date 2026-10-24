@@ -1,5 +1,6 @@
 
-const API_BASE_URL = "https://backend-sigma-nine-22.vercel.app";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export async function apiRequest(endpoint, options = {}) {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {

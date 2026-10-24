@@ -74,28 +74,29 @@ export default function Header() {
         <div className="flex items-center gap-4">
           <ThemeToggle />
 
-          {userName ? (
-            <Link
-              href="/Profile"
-              className="hidden sm:inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-[var(--text)] transition-colors hover:text-[var(--primary)]"
-            >
-              Hi, {userName}
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="hidden sm:inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-[var(--text)] transition-colors hover:text-[var(--primary)]"
-            >
-              Sign In
-            </Link>
-          )}
+{userName ? (
+  <Link
+    href="/Profile"
+    className="hidden sm:inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-[var(--text)] transition-colors hover:text-[var(--primary)]"
+  >
+    Hi, {userName}
+  </Link>
+) : (
+  <Link
+    href="/login"
+    className="hidden sm:inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-[var(--text)] transition-colors hover:text-[var(--primary)]"
+  >
+    Sign In
+  </Link>
+)}
 
-          <Link
-            href={userName ? "/Profile" : "/project#membership"}
-            className="inline-flex items-center justify-center rounded-lg bg-[var(--button-bg)] px-5 py-2.5 text-sm font-semibold text-[var(--button-text)] shadow-md transition-all duration-200 hover:bg-[var(--primary-hover)] hover:shadow-lg"
-          >
-            {userName ? "My Profile" : "Join Now"}
-          </Link>
+<Link
+  href="/project#membership"
+  className="inline-flex items-center justify-center rounded-lg bg-[var(--button-bg)] px-5 py-2.5 text-sm font-semibold text-[var(--button-text)] shadow-md transition-all duration-200 hover:bg-[var(--primary-hover)] hover:shadow-lg"
+>
+  Join Now
+</Link>
+
         </div>
       </div>
     </header>
