@@ -1,11 +1,14 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-
-const API_URL = "http://localhost:5000/api/classes";
+import { useRouter } from "next/navigation";
+import { apiRequest } from "@/lib/api";
 
 export default function Classes() {
+  const router = useRouter();
+
   const [classes, setClasses] = useState([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
@@ -20,13 +23,11 @@ export default function Classes() {
         setLoading(true);
         setError("");
 
-        const response = await fetch(API_URL, {
+        const data = await apiRequest("/api/classes", {
           signal: controller.signal,
         });
 
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
+        if (!data.success) {
           throw new Error(data.message || "Failed to load classes.");
         }
 
@@ -35,10 +36,11 @@ export default function Classes() {
         if (err.name === "AbortError") return;
 
         console.error("Fetch classes error:", err);
+
         setError(
           err instanceof TypeError
             ? "Cannot connect to the server. Please make sure the backend is running."
-            : err.message || "Something went wrong while loading classes.",
+            : err.message || "Something went wrong while loading classes."
         );
       } finally {
         if (!controller.signal.aborted) {
@@ -54,24 +56,31 @@ export default function Classes() {
 
   const categories = useMemo(
     () => ["All", ...new Set(classes.map((item) => item.category))],
-    [classes],
+    [classes]
   );
 
   const filteredClasses = useMemo(() => {
     const searchTerm = search.trim().toLowerCase();
 
     return classes.filter((item) => {
-      const matchesSearch = item.name.toLowerCase().includes(searchTerm);
+      const matchesSearch = item.name
+        .toLowerCase()
+        .includes(searchTerm);
 
-      const matchesFilter = filter === "All" || item.category === filter;
+      const matchesFilter =
+        filter === "All" || item.category === filter;
 
       return matchesSearch && matchesFilter;
     });
   }, [classes, search, filter]);
 
   function handleBooking(item) {
-    // هنربط الزر بنظام الحجز لاحقًا.
-    alert(`You selected: ${item.name}`);
+    // Pass the selected workout to the booking page.
+    const params = new URLSearchParams({
+      workout: item.name,
+    });
+
+    router.push(`/plan?${params.toString()}`);
   }
 
   return (
@@ -143,7 +152,9 @@ export default function Classes() {
               Unable to load classes
             </h3>
 
-            <p className="mt-2 text-[var(--text-secondary)]">{error}</p>
+            <p className="mt-2 text-[var(--text-secondary)]">
+              {error}
+            </p>
 
             <button
               type="button"

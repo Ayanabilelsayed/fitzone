@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { apiRequest } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -81,30 +82,18 @@ export default function RegisterPage() {
 
     setIsLoading(true);
 
+    
     try {
-      const response = await fetch(
-        "http://localhost:5000/api/auth/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fullName: fullName.trim(),
-            email: email.trim(),
-            password,
-            confirmPassword,
-            termsAccepted: acceptTerms,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        alert(data.message || "Registration failed");
-        return;
-      }
+      const data = await apiRequest("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          fullName: fullName.trim(),
+          email: email.trim(),
+          password,
+          confirmPassword,
+          termsAccepted: acceptTerms,
+        }),
+      });
 
       // Save user information for the Header
       if (data.user) {
@@ -114,24 +103,20 @@ export default function RegisterPage() {
         );
 
         window.dispatchEvent(new Event("fitzone-auth-changed"));
+
+        alert("Account created successfully!");
+        router.push("/project");
       } else {
-        // Registration succeeded, but the API did not return user data.
-        // The user can sign in to load their account information.
         alert("Account created successfully! Please sign in.");
         router.push("/login");
-        return;
       }
-
-      alert("Account created successfully!");
-      router.push("/project");
     } catch (error) {
       console.error("Registration error:", error);
-      alert("Could not connect to the server. Please try again.");
+      alert(error.message || "Could not connect to the server. Please try again.");
     } finally {
       setIsLoading(false);
     }
   }
-
   return (
     <main
       className="relative flex min-h-screen items-center justify-center bg-cover bg-center bg-no-repeat px-4 py-3 sm:px-6"

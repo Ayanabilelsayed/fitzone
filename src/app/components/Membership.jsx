@@ -5,6 +5,7 @@ import Link from "next/link";
 
 const plans = [
   {
+    id: "basic",
     name: "Basic Plan",
     price: 29,
     period: "/month",
@@ -16,6 +17,7 @@ const plans = [
     popular: false,
   },
   {
+    id: "pro",
     name: "Pro Plan",
     price: 59,
     period: "/month",
@@ -28,6 +30,7 @@ const plans = [
     popular: true,
   },
   {
+    id: "elite",
     name: "VIP Elite",
     price: 99,
     period: "/month",
@@ -67,7 +70,7 @@ export default function Membership() {
         <div className="grid grid-cols-1 items-stretch gap-8 md:grid-cols-3">
           {plans.map((plan) => (
             <article
-              key={plan.name}
+              key={plan.id}
               className={`relative flex flex-col justify-between rounded-3xl border p-7 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl sm:p-8 ${
                 plan.popular
                   ? "border-[var(--primary)] shadow-lg md:scale-105"
@@ -84,7 +87,10 @@ export default function Membership() {
                 <h2 className="text-xl font-bold">{plan.name}</h2>
 
                 <div className="mt-5 flex items-baseline gap-1">
-                  <span className="text-4xl font-black">${plan.price}</span>
+                  <span className="text-4xl font-black">
+                    ${plan.price}
+                  </span>
+
                   <span className="text-sm font-medium text-[var(--text-muted)]">
                     {plan.period}
                   </span>
@@ -99,21 +105,24 @@ export default function Membership() {
                       <span className="font-bold text-[var(--primary)]">
                         ✓
                       </span>
+
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
+              {/* Navigate to the booking page with the selected plan ID */}
               <Link
-                href={`/Payment?plan=${encodeURIComponent(plan.name)}`}
-                className={`mt-8 inline-flex w-full items-center justify-center rounded-xl px-5 py-3.5 text-sm font-bold transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${
+                href={`/plan?plan=${encodeURIComponent(plan.id)}`}
+                className={`group mt-8 inline-flex w-full items-center justify-center rounded-xl px-5 py-3.5 text-sm font-bold transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${
                   plan.popular
                     ? "bg-[var(--button-bg)] text-[var(--button-text)] hover:bg-[var(--primary-hover)]"
                     : "border border-[var(--border)] bg-[var(--surface-light)] text-[var(--text)] hover:border-[var(--primary)] hover:bg-[var(--surface-hover)]"
                 }`}
               >
                 Get Started
+
                 <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1">
                   →
                 </span>
@@ -123,7 +132,8 @@ export default function Membership() {
         </div>
 
         <p className="text-center text-xs leading-5 text-[var(--text-muted)]">
-          All membership plans are billed monthly. Choose your plan to continue.
+          All membership plans are billed monthly. Choose your plan to
+          continue.
         </p>
       </div>
     </section>

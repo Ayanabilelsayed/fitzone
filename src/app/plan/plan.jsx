@@ -1,36 +1,77 @@
+
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+
+import { apiRequest } from "@/lib/api";
+
+function getToday() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+// Calculate outside the component to avoid creating a new Date during render.
+const TODAY = getToday();
 
 const plans = [
   {
     id: "basic",
     name: "Basic",
     price: 25,
-    description: "Perfect for getting started",
-    features: ["Full gym access", "Gym equipment", "Locker room"],
+    description: "Build your fitness routine",
+    features: ["Gym access", "Basic workout guidance", "Locker access"],
   },
   {
     id: "pro",
     name: "Pro",
     price: 45,
-    description: "For your fitness goals",
-    features: ["Full gym access", "Group classes", "Progress tracking"],
+    description: "Take your training further",
+    features: ["Everything in Basic", "Group classes", "Trainer guidance"],
+    popular: true,
   },
   {
     id: "elite",
     name: "Elite",
     price: 70,
-    description: "Your premium fitness experience",
-    features: ["All Pro features", "Personal training", "Priority booking"],
+    description: "Your complete fitness experience",
+    features: [
+      "Everything in Pro",
+      "Personal training session",
+      "Priority class booking",
+    ],
   },
 ];
 
 const trainers = [
-  { id: "ahmed", name: "Ahmed Hassan", specialty: "Strength Training" },
-  { id: "sara", name: "Sara Mohamed", specialty: "Yoga & Flexibility" },
-  { id: "omar", name: "Omar Ali", specialty: "HIIT & Cardio" },
-  { id: "nour", name: "Nour Ibrahim", specialty: "Fitness & Conditioning" },
+  {
+    id: "ahmed",
+    name: "Ahmed Hassan",
+    specialty: "Strength Training",
+    initials: "AH",
+  },
+  {
+    id: "sara",
+    name: "Sara Mohamed",
+    specialty: "Yoga & Flexibility",
+    initials: "SM",
+  },
+  {
+    id: "omar",
+    name: "Omar Ali",
+    specialty: "HIIT & Cardio",
+    initials: "OA",
+  },
+  {
+    id: "nour",
+    name: "Nour Ibrahim",
+    specialty: "Fitness & Conditioning",
+    initials: "NI",
+  },
 ];
 
 const workouts = [
@@ -42,7 +83,7 @@ const workouts = [
   "Full Body Workout",
 ];
 
-const timeSlots = [
+const times = [
   "08:00 AM",
   "09:00 AM",
   "10:00 AM",
@@ -56,16 +97,9 @@ const timeSlots = [
   "07:00 PM",
 ];
 
-function getToday() {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
 export default function PlanPage() {
+  const [darkMode, setDarkMode] = useState(true);
+
   const [planId, setPlanId] = useState("pro");
   const [trainerId, setTrainerId] = useState("");
   const [workout, setWorkout] = useState("");
@@ -73,25 +107,56 @@ export default function PlanPage() {
   const [time, setTime] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [termsAccepted, setTermsAccepted] = useState(false);
+
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [bookingResult, setBookingResult] = useState(null);
 
   const selectedPlan = plans.find((plan) => plan.id === planId);
   const selectedTrainer = trainers.find(
     (trainer) => trainer.id === trainerId
   );
 
-  function handleSubmit(event) {
+  const pageBackground = darkMode ? "bg-[#0b0f0d]" : "bg-gray-100";
+  const mainText = darkMode ? "text-white" : "text-gray-900";
+  const cardBackground = darkMode
+    ? "border-[#29312b] bg-[#141a17]"
+    : "border-gray-200 bg-white";
+  const mutedText = darkMode ? "text-gray-400" : "text-gray-500";
+  const inputBackground = darkMode
+    ? "border-[#29312b] bg-[#0b0f0d] text-white"
+    : "border-gray-300 bg-white text-gray-900";
+
+  function resetBooking() {
+    setPlanId("pro");
+    setTrainerId("");
+    setWorkout("");
+    setDate("");
+    setTime("");
+    setPaymentMethod("cash");
+    setTermsAccepted(false);
+    setError("");
+    setSuccess(false);
+    setBookingResult(null);
+  }
+
+  async function handleSubmit(event) {
     event.preventDefault();
     setError("");
 
-    if (!selectedPlan || !selectedTrainer || !workout || !date || !time) {
-      setError("Please complete all your booking details.");
+    if (!selectedPlan) {
+      setError("Please select a membership plan.");
+      return;
+    }
+
+    if (!trainerId || !workout || !date || !time) {
+      setError("Please complete all booking fields.");
       return;
     }
 
     if (date < getToday()) {
-      setError("Please choose today or a future date.");
+      setError("Please select today or a future date.");
       return;
     }
 
@@ -100,509 +165,634 @@ export default function PlanPage() {
       return;
     }
 
-    // Frontend demo only. Connect this step to the backend
-    // before treating the subscription as a real booking.
-    setSuccess(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
+    if (paymentMethod !== "cash") {
+      setError("Cash at the gym is the only payment method currently available.");
+      return;
+    }
 
-  function resetBooking() {
-    setSuccess(false);
-    setError("");
-  }
+    const token =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("fitzoneToken")
+        : null;
 
-  if (success) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0b0f0d] px-4 py-12 text-white">
-        <div className="w-full max-w-xl rounded-3xl border border-[#29322c] bg-[#141a17] p-6 text-center sm:p-10">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-[#C8FF3D] bg-[#C8FF3D]/10 text-4xl text-[#C8FF3D]">
-            ✓
-          </div>
+    if (!token) {
+      setError("Please log in before booking your membership.");
+      return;
+    }
 
-          <p className="mt-6 text-sm font-bold uppercase tracking-[0.3em] text-[#C8FF3D]">
-            FITZONE
-          </p>
+    setLoading(true);
 
-          <h1 className="mt-4 text-3xl font-bold sm:text-4xl">
-            Booking Successful!
-          </h1>
+    try {
+      const data = await apiRequest("/api/bookings", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          planId,
+          trainerId,
+          workout,
+          date,
+          time,
+          paymentMethod,
+          termsAccepted,
+        }),
+      });
 
-          <p className="mx-auto mt-4 max-w-md leading-7 text-gray-400">
-            Thank you for choosing FITZONE! Your booking details
-            are ready. Connect your account to save and confirm
-            your reservation.
-          </p>
+      setBookingResult({
+        booking: data.booking,
+        subscription: data.subscription,
+        plan: selectedPlan,
+        trainer: selectedTrainer,
+        workout,
+        date,
+        time,
+        paymentMethod,
+      });
 
-          <div className="mt-8 rounded-2xl border border-[#29322c] bg-[#0b0f0d] p-5 text-left">
-            <h2 className="mb-5 text-lg font-bold">
-              Your Booking Summary
-            </h2>
-
-            <div className="space-y-4 text-sm">
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Membership</span>
-                <span className="font-semibold">{selectedPlan.name}</span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Duration</span>
-                <span>1 Month</span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Total</span>
-                <span className="font-bold text-[#C8FF3D]">
-                  ${selectedPlan.price}
-                </span>
-              </div>
-
-              <div className="h-px bg-[#29322c]" />
-
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Trainer</span>
-                <span className="text-right">{selectedTrainer.name}</span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Workout</span>
-                <span className="text-right">{workout}</span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Date</span>
-                <span>{date}</span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Time</span>
-                <span>{time}</span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Payment</span>
-                <span>
-                  {paymentMethod === "cash" ? "Cash at Gym" : "Online"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={() => (window.location.href = "/")}
-            className="mt-6 w-full rounded-xl bg-[#C8FF3D] px-6 py-4 font-bold text-[#0b0f0d] transition hover:bg-[#b5ed30]"
-          >
-            Back to Home
-          </button>
-
-          <button
-            onClick={resetBooking}
-            className="mt-3 w-full rounded-xl border border-[#37413b] px-6 py-3 font-semibold text-gray-300 transition hover:border-[#C8FF3D] hover:text-[#C8FF3D]"
-          >
-            Edit Booking
-          </button>
-        </div>
-      </main>
-    );
+      setSuccess(true);
+    } catch (err) {
+      setError(err.message || "Booking failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <main className="min-h-screen bg-[#0b0f0d] px-4 py-10 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-10 text-center">
-          <p className="text-sm font-bold uppercase tracking-[0.3em] text-[#C8FF3D]">
-            FITZONE MEMBERSHIP
-          </p>
+    <div
+      className={`min-h-screen transition-colors duration-300 ${pageBackground} ${mainText}`}
+    >
+     
 
-          <h1 className="mt-4 text-3xl font-bold sm:text-5xl">
-            Build Your Fitness Plan
-          </h1>
+      <main className="px-4 pb-20 pt-10 sm:px-6 sm:pt-14">
+        <div className="mx-auto max-w-6xl">
+          {/* Page heading */}
+          <header className="mb-10 text-center sm:mb-14">
+            <p className="mb-3 text-xs font-bold uppercase tracking-[0.3em] text-[#C8FF3D]">
+              FITZONE MEMBERSHIP
+            </p>
 
-          <p className="mx-auto mt-4 max-w-2xl leading-7 text-gray-400">
-            Choose your membership, meet your favorite trainer,
-            select your workout, and book your preferred time.
-          </p>
-        </header>
+            <h1 className="text-3xl font-black tracking-tight sm:text-5xl">
+              Your fitness journey
+              <span className="block text-[#C8FF3D]">starts here.</span>
+            </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Step 1: Choose a membership */}
-          <section className="rounded-2xl border border-[#29322c] bg-[#141a17] p-5 sm:p-8">
-            <div className="mb-6 flex items-center gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C8FF3D] font-bold text-black">
-                01
+            <p
+              className={`mx-auto mt-4 max-w-2xl text-sm leading-7 sm:text-base ${mutedText}`}
+            >
+              Choose your membership, meet your trainer, and schedule your
+              next workout.
+            </p>
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-medium sm:gap-5">
+              <span className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#C8FF3D] text-[#0b0f0d]">
+                  1
+                </span>
+                Choose a plan
               </span>
 
-              <div>
-                <h2 className="text-xl font-bold sm:text-2xl">
-                  Choose Your Plan
-                </h2>
-                <p className="mt-1 text-sm text-gray-400">
-                  Select the membership that fits your goals.
-                </p>
-              </div>
-            </div>
+              <span className="hidden h-px w-8 bg-[#46513e] sm:block" />
 
-            <div className="grid gap-4 md:grid-cols-3">
-              {plans.map((plan) => {
-                const isSelected = planId === plan.id;
-
-                return (
-                  <button
-                    key={plan.id}
-                    type="button"
-                    onClick={() => setPlanId(plan.id)}
-                    aria-pressed={isSelected}
-                    className={`rounded-2xl border p-5 text-left transition ${
-                      isSelected
-                        ? "border-[#C8FF3D] bg-[#C8FF3D]/5"
-                        : "border-[#37413b] hover:border-gray-500"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-xl font-bold">{plan.name}</h3>
-
-                      <span
-                        className={`flex h-5 w-5 items-center justify-center rounded-full border text-xs ${
-                          isSelected
-                            ? "border-[#C8FF3D] bg-[#C8FF3D] text-black"
-                            : "border-gray-500"
-                        }`}
-                      >
-                        {isSelected ? "✓" : ""}
-                      </span>
-                    </div>
-
-                    <p className="mt-2 text-sm text-gray-400">
-                      {plan.description}
-                    </p>
-
-                    <p className="mt-5 text-3xl font-bold text-[#C8FF3D]">
-                      ${plan.price}
-                      <span className="text-sm font-normal text-gray-400">
-                        {" "}/ month
-                      </span>
-                    </p>
-
-                    <ul className="mt-5 space-y-3">
-                      {plan.features.map((feature) => (
-                        <li
-                          key={feature}
-                          className="flex gap-2 text-sm text-gray-300"
-                        >
-                          <span className="text-[#C8FF3D]">✓</span>
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Step 2: Choose a trainer */}
-          <section className="rounded-2xl border border-[#29322c] bg-[#141a17] p-5 sm:p-8">
-            <div className="mb-6 flex items-center gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C8FF3D] font-bold text-black">
-                02
+              <span className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#C8FF3D] text-[#0b0f0d]">
+                  2
+                </span>
+                Book a session
               </span>
 
-              <div>
-                <h2 className="text-xl font-bold sm:text-2xl">
-                  Choose Your Trainer
-                </h2>
-                <p className="mt-1 text-sm text-gray-400">
-                  Pick your preferred fitness coach.
-                </p>
-              </div>
-            </div>
+              <span className="hidden h-px w-8 bg-[#46513e] sm:block" />
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              {trainers.map((trainer) => {
-                const isSelected = trainerId === trainer.id;
-
-                return (
-                  <button
-                    key={trainer.id}
-                    type="button"
-                    onClick={() => setTrainerId(trainer.id)}
-                    aria-pressed={isSelected}
-                    className={`flex items-center gap-4 rounded-xl border p-4 text-left transition ${
-                      isSelected
-                        ? "border-[#C8FF3D] bg-[#C8FF3D]/5"
-                        : "border-[#37413b] hover:border-gray-500"
-                    }`}
-                  >
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#263029] text-xl font-bold text-[#C8FF3D]">
-                      {trainer.name.charAt(0)}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-bold">{trainer.name}</h3>
-                      <p className="mt-1 text-sm text-gray-400">
-                        {trainer.specialty}
-                      </p>
-                    </div>
-
-                    <span className="text-[#C8FF3D]">
-                      {isSelected ? "✓" : "○"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Step 3: Choose a workout */}
-          <section className="rounded-2xl border border-[#29322c] bg-[#141a17] p-5 sm:p-8">
-            <div className="mb-6 flex items-center gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C8FF3D] font-bold text-black">
-                03
+              <span className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#C8FF3D] text-[#0b0f0d]">
+                  3
+                </span>
+                Confirm booking
               </span>
+            </div>
+          </header>
 
-              <div>
-                <h2 className="text-xl font-bold sm:text-2xl">
-                  Select Your Workout
-                </h2>
-                <p className="mt-1 text-sm text-gray-400">
-                  What would you like to train?
-                </p>
+          {success && bookingResult ? (
+            <section
+              className={`mx-auto max-w-3xl rounded-3xl border p-6 sm:p-10 ${cardBackground}`}
+            >
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#C8FF3D] text-3xl font-black text-[#0b0f0d]">
+                ✓
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {workouts.map((item) => {
-                const isSelected = workout === item;
+              <p className="mt-5 text-center text-xs font-bold uppercase tracking-[0.25em] text-[#C8FF3D]">
+                BOOKING CONFIRMED
+              </p>
 
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setWorkout(item)}
-                    aria-pressed={isSelected}
-                    className={`rounded-xl border p-4 text-sm font-semibold transition ${
-                      isSelected
-                        ? "border-[#C8FF3D] bg-[#C8FF3D] text-black"
-                        : "border-[#37413b] text-gray-300 hover:border-[#C8FF3D]"
-                    }`}
-                  >
-                    {item}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+              <h2 className="mt-2 text-center text-3xl font-black">
+                You&apos;re all set!
+              </h2>
 
-          {/* Step 4: Choose a date and time */}
-          <section className="rounded-2xl border border-[#29322c] bg-[#141a17] p-5 sm:p-8">
-            <div className="mb-6 flex items-center gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C8FF3D] font-bold text-black">
-                04
-              </span>
+              <p className={`mt-3 text-center ${mutedText}`}>
+                Your booking request was submitted successfully.
+              </p>
 
-              <div>
-                <h2 className="text-xl font-bold sm:text-2xl">
-                  Book Your Session
-                </h2>
-                <p className="mt-1 text-sm text-gray-400">
-                  Select your preferred date and time.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="booking-date"
-                  className="mb-2 block text-sm font-semibold"
-                >
-                  Booking Date
-                </label>
-
-                <input
-                  id="booking-date"
-                  type="date"
-                  min={getToday()}
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                  required
-                  className="w-full rounded-xl border border-[#37413b] bg-[#0b0f0d] px-4 py-4 text-white outline-none focus:border-[#C8FF3D]"
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                <SummaryCard
+                  label="Membership"
+                  value={bookingResult.plan.name}
+                />
+                <SummaryCard
+                  label="Membership price"
+                  value={`$${bookingResult.plan.price}`}
+                />
+                <SummaryCard
+                  label="Trainer"
+                  value={bookingResult.trainer?.name || "Selected trainer"}
+                />
+                <SummaryCard label="Workout" value={bookingResult.workout} />
+                <SummaryCard label="Date" value={bookingResult.date} />
+                <SummaryCard label="Time" value={bookingResult.time} />
+                <SummaryCard label="Payment" value="Cash at the gym" />
+                <SummaryCard
+                  label="Booking status"
+                  value={bookingResult.booking?.status || "Pending"}
                 />
               </div>
 
-              <div>
-                <label
-                  htmlFor="booking-time"
-                  className="mb-2 block text-sm font-semibold"
+              {bookingResult.booking?.id && (
+                <div
+                  className={`mt-5 rounded-xl border p-4 ${darkMode ? "border-[#29312b] bg-[#0b0f0d]" : "border-gray-200 bg-gray-50"}`}
                 >
-                  Available Time
-                </label>
+                  <p className={`text-xs ${mutedText}`}>Booking reference</p>
+                  <p className="mt-1 break-all font-bold text-[#C8FF3D]">
+                    {bookingResult.booking.id}
+                  </p>
+                </div>
+              )}
 
-                <select
-                  id="booking-time"
-                  value={time}
-                  onChange={(event) => setTime(event.target.value)}
-                  required
-                  className="w-full rounded-xl border border-[#37413b] bg-[#0b0f0d] px-4 py-4 text-white outline-none focus:border-[#C8FF3D]"
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={resetBooking}
+                  className="flex-1 rounded-xl bg-[#C8FF3D] px-6 py-3.5 font-bold text-[#0b0f0d] transition hover:bg-[#b6ed2e]"
                 >
-                  <option value="">Select a time</option>
-                  {timeSlots.map((slot) => (
-                    <option key={slot} value={slot}>
-                      {slot}
-                    </option>
-                  ))}
-                </select>
+                  Make Another Booking
+                </button>
+
+                <Link
+                  href="/"
+                  className={`flex-1 rounded-xl border px-6 py-3.5 text-center font-bold transition ${darkMode ? "border-[#46513e] hover:border-[#C8FF3D]" : "border-gray-300 hover:border-gray-500"}`}
+                >
+                  Back to Home
+                </Link>
               </div>
-            </div>
+            </section>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <div className="grid items-start gap-8 lg:grid-cols-[1fr_340px]">
+                <div className="space-y-8">
+                  {/* Membership plans */}
+                  <section>
+                    <SectionHeading
+                      number="01"
+                      title="Choose your plan"
+                      subtitle="Select the membership that fits your goals."
+                    />
 
-            <p className="mt-4 text-xs leading-5 text-gray-500">
-              These are sample time slots. Real availability and
-              trainer schedules must be checked by the backend.
-            </p>
-          </section>
+                    <div className="mt-5 grid gap-4 md:grid-cols-3">
+                      {plans.map((plan) => {
+                        const isSelected = planId === plan.id;
 
-          {/* Step 5: Payment method */}
-          <section className="rounded-2xl border border-[#29322c] bg-[#141a17] p-5 sm:p-8">
-            <div className="mb-6 flex items-center gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C8FF3D] font-bold text-black">
-                05
-              </span>
+                        return (
+                          <button
+                            key={plan.id}
+                            type="button"
+                            onClick={() => setPlanId(plan.id)}
+                            aria-pressed={isSelected}
+                            className={`relative flex h-full flex-col rounded-2xl border p-5 text-left transition duration-200 hover:-translate-y-1 ${
+                              isSelected
+                                ? "border-[#C8FF3D] bg-[#1b2518] shadow-[0_0_0_1px_#C8FF3D]"
+                                : cardBackground
+                            }`}
+                          >
+                            {plan.popular && (
+                              <span className="mb-3 self-start rounded-full bg-[#C8FF3D] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#0b0f0d]">
+                                Most popular
+                              </span>
+                            )}
 
-              <div>
-                <h2 className="text-xl font-bold sm:text-2xl">
-                  Payment Method
-                </h2>
-                <p className="mt-1 text-sm text-gray-400">
-                  Choose how you intend to pay.
-                </p>
+                            <div className="flex w-full items-start justify-between gap-2">
+                              <h3 className="text-xl font-black">
+                                {plan.name}
+                              </h3>
+
+                              <span
+                                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs ${
+                                  isSelected
+                                    ? "border-[#C8FF3D] bg-[#C8FF3D] text-[#0b0f0d]"
+                                    : "border-gray-500"
+                                }`}
+                              >
+                                {isSelected ? "✓" : ""}
+                              </span>
+                            </div>
+
+                            <p className={`mt-2 text-xs leading-5 ${mutedText}`}>
+                              {plan.description}
+                            </p>
+
+                            <p className="mt-5 text-3xl font-black">
+                              ${plan.price}
+                              <span
+                                className={`ml-1 text-xs font-normal ${mutedText}`}
+                              >
+                                / month
+                              </span>
+                            </p>
+
+                            <div className="my-5 h-px w-full bg-[#46513e]" />
+
+                            <ul className="space-y-3">
+                              {plan.features.map((feature) => (
+                                <li
+                                  key={feature}
+                                  className={`flex gap-2 text-xs leading-5 ${mutedText}`}
+                                >
+                                  <span className="font-bold text-[#C8FF3D]">
+                                    ✓
+                                  </span>
+                                  {feature}
+                                </li>
+                              ))}
+                            </ul>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  {/* Trainer selection */}
+                  <section
+                    className={`rounded-2xl border p-5 sm:p-7 ${cardBackground}`}
+                  >
+                    <SectionHeading
+                      number="02"
+                      title="Choose your trainer"
+                      subtitle="Pick the trainer you want to work with."
+                    />
+
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      {trainers.map((trainer) => {
+                        const isSelected = trainerId === trainer.id;
+
+                        return (
+                          <button
+                            key={trainer.id}
+                            type="button"
+                            onClick={() => setTrainerId(trainer.id)}
+                            aria-pressed={isSelected}
+                            className={`flex items-center gap-4 rounded-xl border p-4 text-left transition ${
+                              isSelected
+                                ? "border-[#C8FF3D] bg-[#1b2518]"
+                                : darkMode
+                                  ? "border-[#29312b] bg-[#0b0f0d] hover:border-[#64715a]"
+                                  : "border-gray-200 bg-gray-50 hover:border-gray-400"
+                            }`}
+                          >
+                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#C8FF3D] text-sm font-black text-[#0b0f0d]">
+                              {trainer.initials}
+                            </span>
+
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-bold">
+                                {trainer.name}
+                              </span>
+                              <span
+                                className={`mt-1 block text-xs ${mutedText}`}
+                              >
+                                {trainer.specialty}
+                              </span>
+                            </span>
+
+                            <span
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs ${
+                                isSelected
+                                  ? "border-[#C8FF3D] bg-[#C8FF3D] text-[#0b0f0d]"
+                                  : "border-gray-500"
+                              }`}
+                            >
+                              {isSelected ? "✓" : ""}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  {/* Workout and schedule */}
+                  <section
+                    className={`rounded-2xl border p-5 sm:p-7 ${cardBackground}`}
+                  >
+                    <SectionHeading
+                      number="03"
+                      title="Schedule your workout"
+                      subtitle="Choose your workout type, date and time."
+                    />
+
+                    <div className="mt-6">
+                      <label
+                        htmlFor="workout"
+                        className="mb-2 block text-sm font-semibold"
+                      >
+                        Workout type
+                      </label>
+
+                      <select
+                        id="workout"
+                        value={workout}
+                        onChange={(event) => setWorkout(event.target.value)}
+                        required
+                        className={`w-full rounded-xl border px-4 py-3.5 outline-none transition focus:border-[#C8FF3D] ${inputBackground}`}
+                      >
+                        <option value="">Select a workout</option>
+                        {workouts.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                      <div>
+                        <label
+                          htmlFor="booking-date"
+                          className="mb-2 block text-sm font-semibold"
+                        >
+                          Booking date
+                        </label>
+
+                        <div className="relative">
+                          <input
+                            id="booking-date"
+                            type="date"
+                            min={TODAY}
+                            value={date}
+                            onChange={(event) => setDate(event.target.value)}
+                            required
+                            style={{ colorScheme: "dark" }}
+                            className={`w-full rounded-xl border px-4 py-3.5 pr-12 outline-none transition focus:border-[#C8FF3D] ${inputBackground}`}
+                          />
+
+                          <svg
+                            aria-hidden="true"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#C8FF3D]"
+                          >
+                            <rect
+                              x="3"
+                              y="5"
+                              width="18"
+                              height="16"
+                              rx="2"
+                            />
+                            <path d="M16 3v4M8 3v4M3 10h18" />
+                            <path d="M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="booking-time"
+                          className="mb-2 block text-sm font-semibold"
+                        >
+                          Booking time
+                        </label>
+
+                        <select
+                          id="booking-time"
+                          value={time}
+                          onChange={(event) => setTime(event.target.value)}
+                          required
+                          className={`w-full rounded-xl border px-4 py-3.5 outline-none transition focus:border-[#C8FF3D] ${inputBackground}`}
+                        >
+                          <option value="">Select a time</option>
+                          {times.map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Payment and terms */}
+                  <section
+                    className={`rounded-2xl border p-5 sm:p-7 ${cardBackground}`}
+                  >
+                    <SectionHeading
+                      number="04"
+                      title="Payment & confirmation"
+                      subtitle="Review your payment method and accept the terms."
+                    />
+
+                    <div
+                      className={`mt-5 flex items-center gap-4 rounded-xl border p-4 ${
+                        darkMode
+                          ? "border-[#46513e] bg-[#0b0f0d]"
+                          : "border-gray-200 bg-gray-50"
+                      }`}
+                    >
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#C8FF3D] text-[#0b0f0d]">
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          className="h-6 w-6"
+                        >
+                          <rect x="3" y="5" width="18" height="14" rx="2" />
+                          <path d="M3 10h18M7 15h4" />
+                        </svg>
+                      </span>
+
+                      <span className="flex-1">
+                        <span className="block font-bold">Cash at the gym</span>
+                        <span className={`mt-1 block text-xs ${mutedText}`}>
+                          Pay in person at the gym.
+                        </span>
+                      </span>
+
+                      <span className="rounded-full border border-[#C8FF3D] px-3 py-1 text-xs font-bold text-[#C8FF3D]">
+                        Selected
+                      </span>
+                    </div>
+
+                    <input
+                      type="hidden"
+                      name="paymentMethod"
+                      value={paymentMethod}
+                    />
+
+                    <label className="mt-6 flex cursor-pointer items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={termsAccepted}
+                        onChange={(event) =>
+                          setTermsAccepted(event.target.checked)
+                        }
+                        required
+                        className="mt-1 h-4 w-4 shrink-0 accent-[#C8FF3D]"
+                      />
+
+                      <span className={`text-sm leading-6 ${mutedText}`}>
+                        I agree to the booking terms and conditions and confirm
+                        that the information I provided is correct.
+                      </span>
+                    </label>
+                  </section>
+
+                  {error && (
+                    <div
+                      role="alert"
+                      className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm leading-6 text-red-400"
+                    >
+                      <span className="font-bold">Booking error: </span>
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#C8FF3D] px-6 py-4 font-black text-[#0b0f0d] transition hover:bg-[#b6ed2e] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loading ? "Processing your booking..." : "Confirm Booking"}
+                    {!loading && <span aria-hidden="true">→</span>}
+                  </button>
+                </div>
+
+                {/* Booking summary */}
+                <aside className="lg:sticky lg:top-6">
+                  <div
+                    className={`overflow-hidden rounded-2xl border ${cardBackground}`}
+                  >
+                    <div className="bg-[#C8FF3D] p-6 text-[#0b0f0d]">
+                      <p className="text-xs font-black uppercase tracking-[0.2em]">
+                        YOUR BOOKING
+                      </p>
+                      <h2 className="mt-2 text-2xl font-black">
+                        Order summary
+                      </h2>
+                      <p className="mt-2 text-sm text-[#26351b]">
+                        Check your choices before confirming.
+                      </p>
+                    </div>
+
+                    <div className="space-y-5 p-5 sm:p-6">
+                      <SummaryRow
+                        label="Membership"
+                        value={selectedPlan?.name || "Not selected"}
+                      />
+                      <SummaryRow
+                        label="Trainer"
+                        value={selectedTrainer?.name || "Not selected"}
+                      />
+                      <SummaryRow
+                        label="Workout"
+                        value={workout || "Not selected"}
+                      />
+                      <SummaryRow
+                        label="Date"
+                        value={date || "Not selected"}
+                      />
+                      <SummaryRow
+                        label="Time"
+                        value={time || "Not selected"}
+                      />
+                      <SummaryRow label="Payment" value="Cash at the gym" />
+
+                      <div
+                        className={`border-t pt-5 ${darkMode ? "border-[#46513e]" : "border-gray-200"}`}
+                      >
+                        <div className="flex items-end justify-between gap-3">
+                          <div>
+                            <p className={`text-xs ${mutedText}`}>
+                              Monthly membership
+                            </p>
+                            <p className="mt-1 text-3xl font-black text-[#C8FF3D]">
+                              ${selectedPlan?.price ?? 0}
+                            </p>
+                          </div>
+
+                          <span className={`pb-1 text-xs ${mutedText}`}>
+                            / month
+                          </span>
+                        </div>
+
+                        <p className={`mt-3 text-xs leading-5 ${mutedText}`}>
+                          Payment is made at the gym. The price shown is the
+                          membership price and does not imply that payment has
+                          already been completed.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`mt-4 rounded-2xl border p-5 ${cardBackground}`}
+                  >
+                    <p className="font-bold">Need help?</p>
+                    <p className={`mt-2 text-sm leading-6 ${mutedText}`}>
+                      Make sure your booking details are correct before
+                      submitting your request.
+                    </p>
+                  </div>
+                </aside>
               </div>
-            </div>
+            </form>
+          )}
+        </div>
+      </main>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod("cash")}
-                aria-pressed={paymentMethod === "cash"}
-                className={`rounded-xl border p-5 text-left transition ${
-                  paymentMethod === "cash"
-                    ? "border-[#C8FF3D] bg-[#C8FF3D]/5"
-                    : "border-[#37413b]"
-                }`}
-              >
-                <span className="text-lg">💵</span>
-                <h3 className="mt-3 font-bold">Cash at Gym</h3>
-                <p className="mt-2 text-sm text-gray-400">
-                  Pay at the gym reception.
-                </p>
-              </button>
+    
+    </div>
+  );
+}
 
-              <button
-                type="button"
-                onClick={() => setPaymentMethod("online")}
-                aria-pressed={paymentMethod === "online"}
-                className={`rounded-xl border p-5 text-left transition ${
-                  paymentMethod === "online"
-                    ? "border-[#C8FF3D] bg-[#C8FF3D]/5"
-                    : "border-[#37413b]"
-                }`}
-              >
-                <span className="text-lg">💳</span>
-                <h3 className="mt-3 font-bold">Online Payment</h3>
-                <p className="mt-2 text-sm text-gray-400">
-                  Online payment integration required.
-                </p>
-              </button>
-            </div>
-          </section>
+function SectionHeading({ number, title, subtitle }) {
+  return (
+    <div className="flex items-start gap-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C8FF3D] text-sm font-black text-[#0b0f0d]">
+        {number}
+      </span>
 
-          {/* Booking summary */}
-          <section className="rounded-2xl border border-[#C8FF3D]/40 bg-[#141a17] p-5 sm:p-8">
-            <h2 className="text-2xl font-bold">Booking Summary</h2>
-
-            <div className="mt-6 space-y-4 text-sm">
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Membership</span>
-                <span className="font-semibold">{selectedPlan.name}</span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Duration</span>
-                <span>1 Month</span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Trainer</span>
-                <span className="text-right">
-                  {selectedTrainer?.name || "Not selected"}
-                </span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Workout</span>
-                <span className="text-right">{workout || "Not selected"}</span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">Date & Time</span>
-                <span className="text-right">
-                  {date || "Not selected"}
-                  {time ? ` • ${time}` : ""}
-                </span>
-              </div>
-
-              <div className="my-4 h-px bg-[#37413b]" />
-
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-lg font-bold">Total</span>
-                <span className="text-3xl font-bold text-[#C8FF3D]">
-                  ${selectedPlan.price}
-                </span>
-              </div>
-
-              <p className="text-xs text-gray-500">
-                Sample prices in USD. Final pricing and payment
-                are subject to backend and payment integration.
-              </p>
-            </div>
-
-            <label className="mt-6 flex cursor-pointer items-start gap-3 text-sm leading-6 text-gray-300">
-              <input
-                type="checkbox"
-                checked={termsAccepted}
-                onChange={(event) =>
-                  setTermsAccepted(event.target.checked)
-                }
-                className="mt-1 h-4 w-4 accent-[#C8FF3D]"
-              />
-
-              <span>
-                I agree to the terms and conditions and confirm
-                my selected membership and booking details.
-              </span>
-            </label>
-
-            {error && (
-              <p
-                role="alert"
-                className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300"
-              >
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              className="mt-6 w-full rounded-xl bg-[#C8FF3D] px-6 py-4 font-bold text-[#0b0f0d] transition hover:bg-[#b5ed30] focus:outline-none focus:ring-2 focus:ring-[#C8FF3D] focus:ring-offset-2 focus:ring-offset-[#141a17]"
-            >
-              Confirm Booking →
-            </button>
-
-            <p className="mt-4 text-center text-xs leading-5 text-gray-500">
-              Demo only: this button currently shows a success
-              screen without saving a real subscription or booking.
-            </p>
-          </section>
-        </form>
+      <div>
+        <h2 className="text-xl font-black sm:text-2xl">{title}</h2>
+        <p className="mt-1 text-sm leading-6 text-gray-400">{subtitle}</p>
       </div>
-    </main>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <span className="text-sm text-gray-400">{label}</span>
+      <span className="max-w-[60%] break-words text-right text-sm font-semibold">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value }) {
+  return (
+    <div className="rounded-xl border border-[#29312b] bg-[#0b0f0d] p-4">
+      <p className="text-xs text-gray-400">{label}</p>
+      <p className="mt-2 break-words font-bold text-[#C8FF3D]">{value}</p>
+    </div>
   );
 }

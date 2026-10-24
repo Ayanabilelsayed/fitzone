@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { apiRequest } from "@/lib/api";
 
 export default function Login() {
   const router = useRouter();
@@ -13,59 +14,48 @@ export default function Login() {
   const [remember, setRemember] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  
+async function handleSubmit(event) {
+  event.preventDefault();
 
-    if (!email.trim() || !password) {
-      alert("Please fill in all fields");
+  if (!email.trim() || !password) {
+    alert("Please fill in all fields");
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const data = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        email: email.trim(),
+        password,
+      }),
+    });
+
+    if (!data.user) {
+      alert("Login succeeded, but user information was not returned.");
       return;
     }
 
-    setIsLoading(true);
+    // Save user information for the Header
+    sessionStorage.setItem("fitzoneUser", JSON.stringify(data.user));
 
-    try {
-      const response = await fetch(
-        "http://localhost:5000/api/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: email.trim(),
-            password,
-          }),
-        }
-      );
+    // Notify the Header that the user has logged in
+    window.dispatchEvent(new Event("fitzone-auth-changed"));
 
-      const data = await response.json();
+    alert("Login successful!");
 
-      if (!response.ok) {
-        alert(data.message || "Login failed");
-        return;
-      }
-
-      if (!data.user) {
-        alert("Login succeeded, but user information was not returned.");
-        return;
-      }
-
-      // Save user information for the Header
-      sessionStorage.setItem("fitzoneUser", JSON.stringify(data.user));
-
-      // Notify the Header that the user has logged in
-      window.dispatchEvent(new Event("fitzone-auth-changed"));
-
-      alert("Login successful!");
-
-      router.push("/project");
-    } catch (error) {
-      console.error("Login error:", error);
-      alert("Could not connect to the server. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    router.push("/project");
+  } catch (error) {
+    console.error("Login error:", error);
+    alert(error.message || "Could not connect to the server.");
+  } finally {
+    setIsLoading(false);
   }
+}
+
 
   return (
     <main

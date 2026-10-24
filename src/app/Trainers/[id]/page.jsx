@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { apiRequest } from "@/lib/api";
 
 export default function TrainerDetailsPage() {
   const params = useParams();
@@ -20,20 +21,13 @@ export default function TrainerDetailsPage() {
         setLoading(true);
         setError("");
 
-        const response = await fetch(
-          `http://localhost:5000/api/trainers/${id}`
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || "Failed to load trainer");
-        }
+        const data = await apiRequest(`/api/trainers/${id}`);
 
         setTrainer(data.trainer);
       } catch (err) {
         console.error("Error fetching trainer:", err);
         setError(err.message || "Could not load trainer.");
+        setTrainer(null);
       } finally {
         setLoading(false);
       }
@@ -128,15 +122,15 @@ export default function TrainerDetailsPage() {
 
             {trainer.bio && (
               <div className="mt-6">
-                <h2 className="text-xl font-bold">About the Trainer</h2>
+                <h2 className="text-xl font-bold">
+                  About the Trainer
+                </h2>
 
                 <p className="mt-3 leading-7 text-[var(--text-secondary)]">
                   {trainer.bio}
                 </p>
               </div>
             )}
-
-          
           </div>
         </section>
       </div>

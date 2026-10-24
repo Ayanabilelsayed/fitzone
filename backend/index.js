@@ -4,10 +4,12 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const pool = require("./DB/db");
+
 const authRoutes = require("./routes/auth");
 const classesRoutes = require("./routes/classes");
 const trainersRoutes = require("./routes/trainers");
 const contactRoutes = require("./routes/contact");
+const bookingsRoutes = require("./routes/bookings");
 
 const app = express();
 
@@ -46,11 +48,12 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-// Authentication routes
+// API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/classes", classesRoutes);
 app.use("/api/trainers", trainersRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/bookings", bookingsRoutes);
 
 const PORT = process.env.PORT || 5000;
 
