@@ -3,8 +3,10 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+
 const pool = require("./DB/db");
 
+const adminRoutes = require("./routes/admin");
 const authRoutes = require("./routes/auth");
 const classesRoutes = require("./routes/classes");
 const trainersRoutes = require("./routes/trainers");
@@ -13,15 +15,21 @@ const bookingsRoutes = require("./routes/bookings");
 
 const app = express();
 
-// CORS
+// CORS: Allow requests from the deployed frontend
 const allowedOrigins = [
-  "http://localhost:3000",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests without an Origin header
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
   })
 );
 
@@ -61,6 +69,7 @@ app.use("/api/classes", classesRoutes);
 app.use("/api/trainers", trainersRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/bookings", bookingsRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Local server only
 if (process.env.NODE_ENV !== "production") {
