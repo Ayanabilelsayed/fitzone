@@ -13,7 +13,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
   
 async function handleSubmit(event) {
   event.preventDefault();
@@ -28,10 +27,7 @@ async function handleSubmit(event) {
   try {
     const data = await apiRequest("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({
-        email: email.trim(),
-        password,
-      }),
+      body: JSON.stringify({ email, password }),
     });
 
     if (!data.user) {
@@ -39,15 +35,25 @@ async function handleSubmit(event) {
       return;
     }
 
-    // Save user information for the Header
+    // Save user information
     sessionStorage.setItem("fitzoneUser", JSON.stringify(data.user));
 
-    // Notify the Header that the user has logged in
+    // Save authentication token
+    if (data.token) {
+      sessionStorage.setItem("fitzoneToken", data.token);
+    }
+
+    // Notify the Header
     window.dispatchEvent(new Event("fitzone-auth-changed"));
 
     alert("Login successful!");
 
-    router.push("/project");
+    // Redirect based on user role
+    if (data.user.role === "admin") {
+      router.push("/Admin/Dashbord");
+    } else {
+      router.push("/project");
+    }
   } catch (error) {
     console.error("Login error:", error);
     alert(error.message || "Could not connect to the server.");
@@ -55,7 +61,6 @@ async function handleSubmit(event) {
     setIsLoading(false);
   }
 }
-
 
   return (
     <main

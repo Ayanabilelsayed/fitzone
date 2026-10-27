@@ -11,10 +11,15 @@ export async function apiRequest(endpoint, options = {}) {
     },
   });
 
-  const data = await response.json();
+  const contentType = response.headers.get("content-type") || "";
+  const data = contentType.includes("application/json")
+    ? await response.json()
+    : null;
 
   if (!response.ok) {
-    throw new Error(data.message || "Something went wrong");
+    throw new Error(
+      data?.message || `Request failed with status ${response.status}`
+    );
   }
 
   return data;

@@ -1,4 +1,3 @@
-
 const jwt = require("jsonwebtoken");
 
 function authMiddleware(req, res, next) {
@@ -6,6 +5,7 @@ function authMiddleware(req, res, next) {
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
+      success: false,
       message: "Please log in to continue.",
     });
   }
@@ -20,6 +20,7 @@ function authMiddleware(req, res, next) {
     next();
   } catch (error) {
     return res.status(401).json({
+      success: false,
       message: "Invalid or expired token. Please log in again.",
     });
   }

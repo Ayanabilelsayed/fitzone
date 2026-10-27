@@ -3,9 +3,9 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
-
 const pool = require("./DB/db");
 
+// Import routes
 const adminRoutes = require("./routes/admin");
 const authRoutes = require("./routes/auth");
 const classesRoutes = require("./routes/classes");
@@ -15,27 +15,27 @@ const bookingsRoutes = require("./routes/bookings");
 
 const app = express();
 
-// CORS: Allow requests from the deployed frontend
+// CORS configuration
 const allowedOrigins = [
+  "http://localhost:3000",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests without an Origin header
       if (!origin || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
 
-      return callback(new Error("Not allowed by CORS"));
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
   })
 );
 
 app.use(express.json());
 
-// Test the backend
+// Test backend
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
@@ -43,7 +43,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// Test the database connection
+// Test database connection
 app.get("/api/health", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW() AS current_time");
@@ -63,7 +63,7 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-// API routes
+// Register API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/classes", classesRoutes);
 app.use("/api/trainers", trainersRoutes);
@@ -71,7 +71,7 @@ app.use("/api/contact", contactRoutes);
 app.use("/api/bookings", bookingsRoutes);
 app.use("/api/admin", adminRoutes);
 
-// Local server only
+// Start local server
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 5000;
 
@@ -80,5 +80,5 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-// Export Express app for Vercel
+// Export app for Vercel
 module.exports = app;
