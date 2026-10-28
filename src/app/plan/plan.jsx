@@ -49,28 +49,32 @@ const plans = [
 
 const trainers = [
   {
-    id: "ahmed",
-    name: "Ahmed Hassan",
-    specialty: "Strength Training",
-    initials: "AH",
+    id: 1,
+    name: "Marcus Vance",
+    specialty: "Head Strength Coach",
+    initials: "MV",
+    experience: "5+ Years Experience",
   },
   {
-    id: "sara",
-    name: "Sara Mohamed",
-    specialty: "Yoga & Flexibility",
-    initials: "SM",
+    id: 2,
+    name: "Elena Rostova",
+    specialty: "Yoga & Mindfulness Lead",
+    initials: "ER",
+    experience: "6+ Years Experience",
   },
   {
-    id: "omar",
-    name: "Omar Ali",
-    specialty: "HIIT & Cardio",
-    initials: "OA",
+    id: 3,
+    name: "David Miller",
+    specialty: "HIIT & CrossFit Specialist",
+    initials: "DM",
+    experience: "5+ Years Experience",
   },
   {
-    id: "nour",
-    name: "Nour Ibrahim",
-    specialty: "Fitness & Conditioning",
-    initials: "NI",
+    id: 4,
+    name: "Sarah Jenkins",
+    specialty: "Pilates & Core Instructor",
+    initials: "SJ",
+    experience: "7+ Years Experience",
   },
 ];
 

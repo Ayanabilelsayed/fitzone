@@ -17,14 +17,6 @@ const plans = {
   },
 };
 
-// These IDs and names must match the frontend.
-const trainers = {
-  ahmed: "Ahmed",
-  sara: "Sara",
-  omar: "Omar",
-  nour: "Nour",
-};
-
 const allowedWorkouts = [
   "Strength Training",
   "Cardio",
@@ -48,7 +40,7 @@ const createBooking = async (req, res) => {
       termsAccepted,
     } = req.body;
 
-    // The user ID comes from the verified JWT, not the request body.
+    // The user ID comes from the verified JWT.
     const userId = req.user.id;
 
     // Validate the selected plan.
@@ -60,10 +52,16 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // Validate trainer.
-    const trainerName = trainers[trainerId];
+    // Validate trainer ID.
+    const parsedTrainerId = Number(trainerId);
 
-    if (!trainerName) {
+    if (
+      trainerId === undefined ||
+      trainerId === null ||
+      trainerId === "" ||
+      !Number.isInteger(parsedTrainerId) ||
+      parsedTrainerId <= 0
+    ) {
       return res.status(400).json({
         message: "Please select a valid trainer.",
       });
@@ -76,7 +74,7 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // Validate date format.
+    // Validate date format and actual calendar date.
     if (
       typeof date !== "string" ||
       !/^\d{4}-\d{2}-\d{2}$/.test(date)
@@ -115,7 +113,7 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // Online payments are not processed until a payment gateway is integrated.
+    // Online payments are not available until a payment gateway is integrated.
     if (paymentMethod === "online") {
       return res.status(400).json({
         message:
@@ -129,11 +127,29 @@ const createBooking = async (req, res) => {
       });
     }
 
+    // Connect to the database.
     client = await pool.connect();
+
+    // Get the real trainer from the database.
+    const trainerResult = await client.query(
+      `SELECT id, name
+       FROM trainers
+       WHERE id = $1 AND is_active = TRUE`,
+      [parsedTrainerId]
+    );
+
+    if (trainerResult.rows.length === 0) {
+      return res.status(400).json({
+        message: "Please select a valid trainer.",
+      });
+    }
+
+    const trainer = trainerResult.rows[0];
+    const trainerName = trainer.name;
 
     await client.query("BEGIN");
 
-    // Prevent two bookings for the same trainer, date and time.
+    // Prevent duplicate bookings for the same trainer, date, and time.
     const existingBooking = await client.query(
       `SELECT id
        FROM bookings
@@ -143,7 +159,7 @@ const createBooking = async (req, res) => {
          AND status <> 'cancelled'
        LIMIT 1
        FOR UPDATE`,
-      [trainerId, date, time.trim()]
+      [trainer.id, date, time.trim()]
     );
 
     if (existingBooking.rows.length > 0) {
@@ -175,7 +191,7 @@ const createBooking = async (req, res) => {
 
     const subscription = subscriptionResult.rows[0];
 
-    // Create the booking linked to the subscription and user.
+    // Create the booking using the real trainer ID and name.
     const bookingResult = await client.query(
       `INSERT INTO bookings
         (subscription_id, user_id, trainer_id, trainer_name,
@@ -186,7 +202,7 @@ const createBooking = async (req, res) => {
       [
         subscription.id,
         userId,
-        trainerId,
+        trainer.id,
         trainerName,
         workout,
         date,
@@ -213,8 +229,9 @@ const createBooking = async (req, res) => {
     console.error("Create booking error:", error.message);
 
     if (error.code === "23503") {
-      return res.status(401).json({
-        message: "User account was not found. Please log in again.",
+      return res.status(400).json({
+        message:
+          "The selected user, trainer, or subscription was not found. Please check your account and booking details.",
       });
     }
 
