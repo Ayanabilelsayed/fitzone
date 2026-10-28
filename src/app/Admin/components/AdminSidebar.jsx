@@ -1,8 +1,9 @@
+
 "use client";
 
-import ThemeToggle from "@/app/components/ThemeToggle";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 import {
   LayoutDashboard,
@@ -10,8 +11,6 @@ import {
   Dumbbell,
   UserRound,
   CalendarCheck,
-  Mail,
-  Settings,
   LogOut,
 } from "lucide-react";
 
@@ -28,28 +27,18 @@ const menuItems = [
   },
   {
     name: "Classes",
-    path: "/Admin/Classes",
+    path: "/Admin/classes",
     icon: Dumbbell,
   },
   {
-    name: "Trainers",
-    path: "/Admin/Trainers",
+    name: "trainers",
+    path: "/Admin/trainers",
     icon: UserRound,
   },
   {
     name: "Bookings",
     path: "/Admin/Bookings",
     icon: CalendarCheck,
-  },
-  {
-    name: "Messages",
-    path: "/Admin/Messages",
-    icon: Mail,
-  },
-  {
-    name: "Settings",
-    path: "/Admin/Settings",
-    icon: Settings,
   },
 ];
 
@@ -58,14 +47,16 @@ export default function AdminSidebar() {
 
   return (
     <aside className="flex min-h-screen w-64 shrink-0 flex-col border-r border-gray-200 bg-white p-5 text-gray-900 transition-colors duration-300 dark:border-[#29342c] dark:bg-[#0b0f0d] dark:text-white">
-
       {/* Logo and Theme Toggle */}
       <div className="mb-10 flex items-center justify-between gap-2">
         <Link
           href="/Admin/Dashbord"
           className="text-2xl font-extrabold tracking-tight"
         >
-          FIT<span className="text-[#78A817] dark:text-[#C8FF3D]">ZONE</span>
+          FIT
+          <span className="text-[#78A817] dark:text-[#C8FF3D]">
+            ZONE
+          </span>
         </Link>
 
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-gray-100 shadow-sm transition-colors duration-300 hover:border-[#78A817] dark:border-[#29342c] dark:bg-[#141a17] dark:hover:border-[#C8FF3D]">
@@ -88,13 +79,18 @@ export default function AdminSidebar() {
             <Link
               key={item.path}
               href={item.path}
+              aria-current={isActive ? "page" : undefined}
               className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors duration-300 ${
                 isActive
                   ? "bg-[#78A817] font-semibold text-white dark:bg-[#C8FF3D] dark:text-black"
                   : "text-gray-700 hover:bg-gray-100 hover:text-[#78A817] dark:text-gray-300 dark:hover:bg-[#1d2621] dark:hover:text-[#C8FF3D]"
               }`}
             >
-              <Icon size={20} strokeWidth={1.8} />
+             {item.icon ? (
+  <item.icon size={20} strokeWidth={1.8} />
+) : (
+  <Dumbbell size={20} strokeWidth={1.8} />
+)}
               <span>{item.name}</span>
             </Link>
           );
