@@ -12,6 +12,8 @@ const classesRoutes = require("./routes/classes");
 const trainersRoutes = require("./routes/trainers");
 const contactRoutes = require("./routes/contact");
 const bookingsRoutes = require("./routes/bookings");
+const ordersRoutes = require("./routes/orders");
+const stripeWebhookRoutes = require("./routes/stripeWebhook");
 
 const app = express();
 
@@ -32,6 +34,10 @@ app.use(
     },
   })
 );
+
+// Stripe webhook must receive the raw body.
+// Keep this route BEFORE express.json().
+app.use("/api/stripe", stripeWebhookRoutes);
 
 app.use(express.json());
 
@@ -70,6 +76,7 @@ app.use("/api/trainers", trainersRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/bookings", bookingsRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/orders", ordersRoutes);
 
 // Start local server
 if (process.env.NODE_ENV !== "production") {

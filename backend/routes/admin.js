@@ -1,3 +1,4 @@
+
 const express = require("express");
 const router = express.Router();
 
@@ -7,6 +8,7 @@ const adminMiddleware = require("../middleware/adminMiddleware");
 const {
   getMembers,
   getOverviewStats,
+  getOrders,
 } = require("../controllers/adminController");
 
 router.get("/", authMiddleware, adminMiddleware, (req, res) => {
@@ -29,6 +31,13 @@ router.get(
   authMiddleware,
   adminMiddleware,
   getOverviewStats
+);
+
+router.get(
+  "/orders",
+  authMiddleware,
+  adminMiddleware,
+  getOrders
 );
 
 module.exports = router;

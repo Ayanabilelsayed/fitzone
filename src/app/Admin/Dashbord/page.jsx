@@ -1,5 +1,5 @@
 import Dashbord from "./Dashbord";
 
-export default function Dashboard() {
+export default function Dashboardadmin() {
   return <Dashbord />;
 }

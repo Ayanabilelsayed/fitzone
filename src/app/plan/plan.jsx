@@ -3,7 +3,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-
 import { apiRequest } from "@/lib/api";
 
 function getToday() {
@@ -11,11 +10,9 @@ function getToday() {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
 
-// Calculate outside the component to avoid creating a new Date during render.
 const TODAY = getToday();
 
 const plans = [
@@ -102,7 +99,7 @@ const times = [
 ];
 
 export default function PlanPage() {
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode] = useState(true);
 
   const [planId, setPlanId] = useState("pro");
   const [trainerId, setTrainerId] = useState("");
@@ -119,7 +116,7 @@ export default function PlanPage() {
 
   const selectedPlan = plans.find((plan) => plan.id === planId);
   const selectedTrainer = trainers.find(
-    (trainer) => trainer.id === trainerId
+    (trainer) => String(trainer.id) === String(trainerId)
   );
 
   const pageBackground = darkMode ? "bg-[#0b0f0d]" : "bg-gray-100";
@@ -169,11 +166,6 @@ export default function PlanPage() {
       return;
     }
 
-    if (paymentMethod !== "cash") {
-      setError("Cash at the gym is the only payment method currently available.");
-      return;
-    }
-
     const token =
       typeof window !== "undefined"
         ? sessionStorage.getItem("fitzoneToken")
@@ -187,6 +179,32 @@ export default function PlanPage() {
     setLoading(true);
 
     try {
+      if (paymentMethod === "stripe") {
+        const data = await apiRequest("/api/orders/checkout", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            planId,
+            trainerId,
+            workout,
+            date,
+            time,
+            termsAccepted,
+          }),
+        });
+
+        if (!data?.url) {
+          throw new Error(
+            "Stripe checkout URL was not returned by the backend."
+          );
+        }
+
+        window.location.assign(data.url);
+        return;
+      }
+
       const data = await apiRequest("/api/bookings", {
         method: "POST",
         headers: {
@@ -198,7 +216,7 @@ export default function PlanPage() {
           workout,
           date,
           time,
-          paymentMethod,
+          paymentMethod: "cash",
           termsAccepted,
         }),
       });
@@ -211,12 +229,12 @@ export default function PlanPage() {
         workout,
         date,
         time,
-        paymentMethod,
+        paymentMethod: "cash",
       });
 
       setSuccess(true);
     } catch (err) {
-      setError(err.message || "Booking failed. Please try again.");
+      setError(err.message || "Unable to process your request.");
     } finally {
       setLoading(false);
     }
@@ -226,11 +244,8 @@ export default function PlanPage() {
     <div
       className={`min-h-screen transition-colors duration-300 ${pageBackground} ${mainText}`}
     >
-     
-
       <main className="px-4 pb-20 pt-10 sm:px-6 sm:pt-14">
         <div className="mx-auto max-w-6xl">
-          {/* Page heading */}
           <header className="mb-10 text-center sm:mb-14">
             <p className="mb-3 text-xs font-bold uppercase tracking-[0.3em] text-[#C8FF3D]">
               FITZONE MEMBERSHIP
@@ -249,30 +264,18 @@ export default function PlanPage() {
             </p>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-medium sm:gap-5">
-              <span className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#C8FF3D] text-[#0b0f0d]">
-                  1
+              {[
+                "Choose a plan",
+                "Book a session",
+                "Confirm booking",
+              ].map((step, index) => (
+                <span key={step} className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#C8FF3D] text-[#0b0f0d]">
+                    {index + 1}
+                  </span>
+                  {step}
                 </span>
-                Choose a plan
-              </span>
-
-              <span className="hidden h-px w-8 bg-[#46513e] sm:block" />
-
-              <span className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#C8FF3D] text-[#0b0f0d]">
-                  2
-                </span>
-                Book a session
-              </span>
-
-              <span className="hidden h-px w-8 bg-[#46513e] sm:block" />
-
-              <span className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#C8FF3D] text-[#0b0f0d]">
-                  3
-                </span>
-                Confirm booking
-              </span>
+              ))}
             </div>
           </header>
 
@@ -285,7 +288,7 @@ export default function PlanPage() {
               </div>
 
               <p className="mt-5 text-center text-xs font-bold uppercase tracking-[0.25em] text-[#C8FF3D]">
-                BOOKING CONFIRMED
+                BOOKING REQUEST SUBMITTED
               </p>
 
               <h2 className="mt-2 text-center text-3xl font-black">
@@ -297,10 +300,7 @@ export default function PlanPage() {
               </p>
 
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                <SummaryCard
-                  label="Membership"
-                  value={bookingResult.plan.name}
-                />
+                <SummaryCard label="Membership" value={bookingResult.plan.name} />
                 <SummaryCard
                   label="Membership price"
                   value={`$${bookingResult.plan.price}`}
@@ -320,9 +320,7 @@ export default function PlanPage() {
               </div>
 
               {bookingResult.booking?.id && (
-                <div
-                  className={`mt-5 rounded-xl border p-4 ${darkMode ? "border-[#29312b] bg-[#0b0f0d]" : "border-gray-200 bg-gray-50"}`}
-                >
+                <div className="mt-5 rounded-xl border border-[#29312b] bg-[#0b0f0d] p-4">
                   <p className={`text-xs ${mutedText}`}>Booking reference</p>
                   <p className="mt-1 break-all font-bold text-[#C8FF3D]">
                     {bookingResult.booking.id}
@@ -341,7 +339,7 @@ export default function PlanPage() {
 
                 <Link
                   href="/"
-                  className={`flex-1 rounded-xl border px-6 py-3.5 text-center font-bold transition ${darkMode ? "border-[#46513e] hover:border-[#C8FF3D]" : "border-gray-300 hover:border-gray-500"}`}
+                  className="flex-1 rounded-xl border border-[#46513e] px-6 py-3.5 text-center font-bold transition hover:border-[#C8FF3D]"
                 >
                   Back to Home
                 </Link>
@@ -351,7 +349,6 @@ export default function PlanPage() {
             <form onSubmit={handleSubmit}>
               <div className="grid items-start gap-8 lg:grid-cols-[1fr_340px]">
                 <div className="space-y-8">
-                  {/* Membership plans */}
                   <section>
                     <SectionHeading
                       number="01"
@@ -382,10 +379,7 @@ export default function PlanPage() {
                             )}
 
                             <div className="flex w-full items-start justify-between gap-2">
-                              <h3 className="text-xl font-black">
-                                {plan.name}
-                              </h3>
-
+                              <h3 className="text-xl font-black">{plan.name}</h3>
                               <span
                                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs ${
                                   isSelected
@@ -403,9 +397,7 @@ export default function PlanPage() {
 
                             <p className="mt-5 text-3xl font-black">
                               ${plan.price}
-                              <span
-                                className={`ml-1 text-xs font-normal ${mutedText}`}
-                              >
+                              <span className={`ml-1 text-xs font-normal ${mutedText}`}>
                                 / month
                               </span>
                             </p>
@@ -418,9 +410,7 @@ export default function PlanPage() {
                                   key={feature}
                                   className={`flex gap-2 text-xs leading-5 ${mutedText}`}
                                 >
-                                  <span className="font-bold text-[#C8FF3D]">
-                                    ✓
-                                  </span>
+                                  <span className="font-bold text-[#C8FF3D]">✓</span>
                                   {feature}
                                 </li>
                               ))}
@@ -431,10 +421,7 @@ export default function PlanPage() {
                     </div>
                   </section>
 
-                  {/* Trainer selection */}
-                  <section
-                    className={`rounded-2xl border p-5 sm:p-7 ${cardBackground}`}
-                  >
+                  <section className={`rounded-2xl border p-5 sm:p-7 ${cardBackground}`}>
                     <SectionHeading
                       number="02"
                       title="Choose your trainer"
@@ -443,20 +430,18 @@ export default function PlanPage() {
 
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                       {trainers.map((trainer) => {
-                        const isSelected = trainerId === trainer.id;
+                        const isSelected = String(trainer.id) === String(trainerId);
 
                         return (
                           <button
                             key={trainer.id}
                             type="button"
-                            onClick={() => setTrainerId(trainer.id)}
+                            onClick={() => setTrainerId(String(trainer.id))}
                             aria-pressed={isSelected}
                             className={`flex items-center gap-4 rounded-xl border p-4 text-left transition ${
                               isSelected
                                 ? "border-[#C8FF3D] bg-[#1b2518]"
-                                : darkMode
-                                  ? "border-[#29312b] bg-[#0b0f0d] hover:border-[#64715a]"
-                                  : "border-gray-200 bg-gray-50 hover:border-gray-400"
+                                : "border-[#29312b] bg-[#0b0f0d] hover:border-[#64715a]"
                             }`}
                           >
                             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#C8FF3D] text-sm font-black text-[#0b0f0d]">
@@ -464,12 +449,8 @@ export default function PlanPage() {
                             </span>
 
                             <span className="min-w-0 flex-1">
-                              <span className="block font-bold">
-                                {trainer.name}
-                              </span>
-                              <span
-                                className={`mt-1 block text-xs ${mutedText}`}
-                              >
+                              <span className="block font-bold">{trainer.name}</span>
+                              <span className={`mt-1 block text-xs ${mutedText}`}>
                                 {trainer.specialty}
                               </span>
                             </span>
@@ -489,10 +470,7 @@ export default function PlanPage() {
                     </div>
                   </section>
 
-                  {/* Workout and schedule */}
-                  <section
-                    className={`rounded-2xl border p-5 sm:p-7 ${cardBackground}`}
-                  >
+                  <section className={`rounded-2xl border p-5 sm:p-7 ${cardBackground}`}>
                     <SectionHeading
                       number="03"
                       title="Schedule your workout"
@@ -500,157 +478,114 @@ export default function PlanPage() {
                     />
 
                     <div className="mt-6">
-                      <label
-                        htmlFor="workout"
-                        className="mb-2 block text-sm font-semibold"
-                      >
+                      <label htmlFor="workout" className="mb-2 block text-sm font-semibold">
                         Workout type
                       </label>
-
                       <select
                         id="workout"
                         value={workout}
                         onChange={(event) => setWorkout(event.target.value)}
                         required
-                        className={`w-full rounded-xl border px-4 py-3.5 outline-none transition focus:border-[#C8FF3D] ${inputBackground}`}
+                        className={`w-full rounded-xl border px-4 py-3.5 outline-none focus:border-[#C8FF3D] ${inputBackground}`}
                       >
                         <option value="">Select a workout</option>
                         {workouts.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
+                          <option key={item} value={item}>{item}</option>
                         ))}
                       </select>
                     </div>
 
                     <div className="mt-5 grid gap-5 sm:grid-cols-2">
                       <div>
-                        <label
-                          htmlFor="booking-date"
-                          className="mb-2 block text-sm font-semibold"
-                        >
+                        <label htmlFor="booking-date" className="mb-2 block text-sm font-semibold">
                           Booking date
                         </label>
-
-                        <div className="relative">
-                          <input
-                            id="booking-date"
-                            type="date"
-                            min={TODAY}
-                            value={date}
-                            onChange={(event) => setDate(event.target.value)}
-                            required
-                            style={{ colorScheme: "dark" }}
-                            className={`w-full rounded-xl border px-4 py-3.5 pr-12 outline-none transition focus:border-[#C8FF3D] ${inputBackground}`}
-                          />
-
-                          <svg
-                            aria-hidden="true"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#C8FF3D]"
-                          >
-                            <rect
-                              x="3"
-                              y="5"
-                              width="18"
-                              height="16"
-                              rx="2"
-                            />
-                            <path d="M16 3v4M8 3v4M3 10h18" />
-                            <path d="M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" />
-                          </svg>
-                        </div>
+                        <input
+                          id="booking-date"
+                          type="date"
+                          min={TODAY}
+                          value={date}
+                          onChange={(event) => setDate(event.target.value)}
+                          required
+                          className={`w-full rounded-xl border px-4 py-3.5 outline-none focus:border-[#C8FF3D] ${inputBackground}`}
+                        />
                       </div>
 
                       <div>
-                        <label
-                          htmlFor="booking-time"
-                          className="mb-2 block text-sm font-semibold"
-                        >
+                        <label htmlFor="booking-time" className="mb-2 block text-sm font-semibold">
                           Booking time
                         </label>
-
                         <select
                           id="booking-time"
                           value={time}
                           onChange={(event) => setTime(event.target.value)}
                           required
-                          className={`w-full rounded-xl border px-4 py-3.5 outline-none transition focus:border-[#C8FF3D] ${inputBackground}`}
+                          className={`w-full rounded-xl border px-4 py-3.5 outline-none focus:border-[#C8FF3D] ${inputBackground}`}
                         >
                           <option value="">Select a time</option>
                           {times.map((item) => (
-                            <option key={item} value={item}>
-                              {item}
-                            </option>
+                            <option key={item} value={item}>{item}</option>
                           ))}
                         </select>
                       </div>
                     </div>
                   </section>
 
-                  {/* Payment and terms */}
-                  <section
-                    className={`rounded-2xl border p-5 sm:p-7 ${cardBackground}`}
-                  >
+                  <section className={`rounded-2xl border p-5 sm:p-7 ${cardBackground}`}>
                     <SectionHeading
                       number="04"
                       title="Payment & confirmation"
-                      subtitle="Review your payment method and accept the terms."
+                      subtitle="Choose how you want to pay and accept the terms."
                     />
 
-                    <div
-                      className={`mt-5 flex items-center gap-4 rounded-xl border p-4 ${
-                        darkMode
-                          ? "border-[#46513e] bg-[#0b0f0d]"
-                          : "border-gray-200 bg-gray-50"
-                      }`}
-                    >
-                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#C8FF3D] text-[#0b0f0d]">
-                        <svg
-                          aria-hidden="true"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          className="h-6 w-6"
-                        >
-                          <rect x="3" y="5" width="18" height="14" rx="2" />
-                          <path d="M3 10h18M7 15h4" />
-                        </svg>
-                      </span>
-
-                      <span className="flex-1">
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("cash")}
+                        aria-pressed={paymentMethod === "cash"}
+                        className={`rounded-xl border p-4 text-left transition ${
+                          paymentMethod === "cash"
+                            ? "border-[#C8FF3D] bg-[#1b2518]"
+                            : "border-[#29312b] bg-[#0b0f0d]"
+                        }`}
+                      >
                         <span className="block font-bold">Cash at the gym</span>
-                        <span className={`mt-1 block text-xs ${mutedText}`}>
+                        <span className={`mt-2 block text-xs ${mutedText}`}>
                           Pay in person at the gym.
                         </span>
-                      </span>
+                        <span className="mt-3 block text-xs font-bold text-[#C8FF3D]">
+                          {paymentMethod === "cash" ? "✓ Selected" : "Select"}
+                        </span>
+                      </button>
 
-                      <span className="rounded-full border border-[#C8FF3D] px-3 py-1 text-xs font-bold text-[#C8FF3D]">
-                        Selected
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("stripe")}
+                        aria-pressed={paymentMethod === "stripe"}
+                        className={`rounded-xl border p-4 text-left transition ${
+                          paymentMethod === "stripe"
+                            ? "border-[#C8FF3D] bg-[#1b2518]"
+                            : "border-[#29312b] bg-[#0b0f0d]"
+                        }`}
+                      >
+                        <span className="block font-bold">Pay online with Stripe</span>
+                        <span className={`mt-2 block text-xs ${mutedText}`}>
+                          Secure checkout in test mode.
+                        </span>
+                        <span className="mt-3 block text-xs font-bold text-[#C8FF3D]">
+                          {paymentMethod === "stripe" ? "✓ Selected" : "Select"}
+                        </span>
+                      </button>
                     </div>
-
-                    <input
-                      type="hidden"
-                      name="paymentMethod"
-                      value={paymentMethod}
-                    />
 
                     <label className="mt-6 flex cursor-pointer items-start gap-3">
                       <input
                         type="checkbox"
                         checked={termsAccepted}
-                        onChange={(event) =>
-                          setTermsAccepted(event.target.checked)
-                        }
+                        onChange={(event) => setTermsAccepted(event.target.checked)}
                         required
                         className="mt-1 h-4 w-4 shrink-0 accent-[#C8FF3D]"
                       />
-
                       <span className={`text-sm leading-6 ${mutedText}`}>
                         I agree to the booking terms and conditions and confirm
                         that the information I provided is correct.
@@ -673,85 +608,64 @@ export default function PlanPage() {
                     disabled={loading}
                     className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#C8FF3D] px-6 py-4 font-black text-[#0b0f0d] transition hover:bg-[#b6ed2e] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {loading ? "Processing your booking..." : "Confirm Booking"}
+                    {loading
+                      ? paymentMethod === "stripe"
+                        ? "Opening Stripe checkout..."
+                        : "Processing your booking..."
+                      : paymentMethod === "stripe"
+                        ? "Continue to Secure Payment"
+                        : "Confirm Booking"}
                     {!loading && <span aria-hidden="true">→</span>}
                   </button>
                 </div>
 
-                {/* Booking summary */}
                 <aside className="lg:sticky lg:top-6">
-                  <div
-                    className={`overflow-hidden rounded-2xl border ${cardBackground}`}
-                  >
+                  <div className={`overflow-hidden rounded-2xl border ${cardBackground}`}>
                     <div className="bg-[#C8FF3D] p-6 text-[#0b0f0d]">
                       <p className="text-xs font-black uppercase tracking-[0.2em]">
                         YOUR BOOKING
                       </p>
-                      <h2 className="mt-2 text-2xl font-black">
-                        Order summary
-                      </h2>
+                      <h2 className="mt-2 text-2xl font-black">Order summary</h2>
                       <p className="mt-2 text-sm text-[#26351b]">
                         Check your choices before confirming.
                       </p>
                     </div>
 
                     <div className="space-y-5 p-5 sm:p-6">
+                      <SummaryRow label="Membership" value={selectedPlan?.name || "Not selected"} />
+                      <SummaryRow label="Trainer" value={selectedTrainer?.name || "Not selected"} />
+                      <SummaryRow label="Workout" value={workout || "Not selected"} />
+                      <SummaryRow label="Date" value={date || "Not selected"} />
+                      <SummaryRow label="Time" value={time || "Not selected"} />
                       <SummaryRow
-                        label="Membership"
-                        value={selectedPlan?.name || "Not selected"}
+                        label="Payment"
+                        value={paymentMethod === "stripe" ? "Stripe online" : "Cash at the gym"}
                       />
-                      <SummaryRow
-                        label="Trainer"
-                        value={selectedTrainer?.name || "Not selected"}
-                      />
-                      <SummaryRow
-                        label="Workout"
-                        value={workout || "Not selected"}
-                      />
-                      <SummaryRow
-                        label="Date"
-                        value={date || "Not selected"}
-                      />
-                      <SummaryRow
-                        label="Time"
-                        value={time || "Not selected"}
-                      />
-                      <SummaryRow label="Payment" value="Cash at the gym" />
 
-                      <div
-                        className={`border-t pt-5 ${darkMode ? "border-[#46513e]" : "border-gray-200"}`}
-                      >
+                      <div className="border-t border-[#46513e] pt-5">
                         <div className="flex items-end justify-between gap-3">
                           <div>
-                            <p className={`text-xs ${mutedText}`}>
-                              Monthly membership
-                            </p>
+                            <p className={`text-xs ${mutedText}`}>Monthly membership</p>
                             <p className="mt-1 text-3xl font-black text-[#C8FF3D]">
                               ${selectedPlan?.price ?? 0}
                             </p>
                           </div>
-
-                          <span className={`pb-1 text-xs ${mutedText}`}>
-                            / month
-                          </span>
+                          <span className={`pb-1 text-xs ${mutedText}`}>/ month</span>
                         </div>
 
                         <p className={`mt-3 text-xs leading-5 ${mutedText}`}>
-                          Payment is made at the gym. The price shown is the
-                          membership price and does not imply that payment has
-                          already been completed.
+                          {paymentMethod === "stripe"
+                            ? "You will be redirected to Stripe to complete your test payment."
+                            : "Payment is made at the gym. Submitting this request does not mean payment has been completed."}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div
-                    className={`mt-4 rounded-2xl border p-5 ${cardBackground}`}
-                  >
+                  <div className={`mt-4 rounded-2xl border p-5 ${cardBackground}`}>
                     <p className="font-bold">Need help?</p>
                     <p className={`mt-2 text-sm leading-6 ${mutedText}`}>
-                      Make sure your booking details are correct before
-                      submitting your request.
+                      Make sure your booking details are correct before submitting.
                     </p>
                   </div>
                 </aside>
@@ -760,8 +674,6 @@ export default function PlanPage() {
           )}
         </div>
       </main>
-
-    
     </div>
   );
 }
@@ -772,7 +684,6 @@ function SectionHeading({ number, title, subtitle }) {
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C8FF3D] text-sm font-black text-[#0b0f0d]">
         {number}
       </span>
-
       <div>
         <h2 className="text-xl font-black sm:text-2xl">{title}</h2>
         <p className="mt-1 text-sm leading-6 text-gray-400">{subtitle}</p>

@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
 import {
   ResponsiveContainer,
   AreaChart,
@@ -19,15 +20,17 @@ import {
   Cell,
   Legend,
 } from "recharts";
+
 import {
   Users,
   Dumbbell,
-  UserRound,
   CalendarCheck,
+  ShoppingBag,
+  UserRound,
   ArrowUpRight,
   Activity,
-  RefreshCw,
   TrendingUp,
+  RefreshCw,
 } from "lucide-react";
 
 import AdminSidebar from "../components/AdminSidebar";
@@ -60,12 +63,12 @@ const initialStats = [
     path: "/Admin/trainers",
   },
   {
-    title: "Total Bookings",
+    title: "Total Orders",
     value: "—",
-    icon: CalendarCheck,
-    color: "text-orange-600 dark:text-orange-400",
-    bg: "bg-orange-100 dark:bg-orange-400/10",
-    path: "/Admin/Bookings",
+    icon: ShoppingBag,
+    color: "text-purple-600 dark:text-purple-400",
+    bg: "bg-purple-100 dark:bg-purple-400/10",
+    path: "/Admin/Orders",
   },
 ];
 
@@ -75,11 +78,11 @@ const cardClass =
 function ChartCard({ title, subtitle, children, action }) {
   return (
     <section
-      className={`${cardClass} group min-w-0 p-5 hover:-translate-y-1 hover:border-lime-500/60 hover:shadow-[0_18px_40px_rgba(120,168,23,0.16)] dark:hover:border-[#C8FF3D]/40 dark:hover:shadow-[0_18px_40px_rgba(200,255,61,0.08)] md:p-6`}
+      className={`${cardClass} group min-w-0 p-5 hover:-translate-y-1 hover:border-lime-500/60 hover:shadow-[0_18px_40px_rgba(120,168,23,0.16)] dark:hover:border-[#C8FF3D]/40 md:p-6`}
     >
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-bold text-gray-900 transition-colors group-hover:text-lime-700 dark:text-white dark:group-hover:text-[#C8FF3D]">
+          <h2 className="font-bold text-gray-900 dark:text-white">
             {title}
           </h2>
           <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
@@ -96,7 +99,7 @@ function ChartCard({ title, subtitle, children, action }) {
 const normalizeRows = (rows) =>
   Array.isArray(rows)
     ? rows.map((row) => ({
-        label: row.label ?? row.month ?? "",
+        label: row.label ?? row.month ?? row.date ?? "",
         members: Number(
           row.members ?? row.total_members ?? row.totalMembers ?? 0
         ),
@@ -105,6 +108,7 @@ const normalizeRows = (rows) =>
 
 export default function OverviewPage() {
   const router = useRouter();
+
   const [memberChart, setMemberChart] = useState({
     "7 days": [],
     "30 days": [],
@@ -119,134 +123,127 @@ export default function OverviewPage() {
     totalMembers: "—",
     totalClasses: "—",
     totalTrainers: "—",
-    totalBookings: "—",
+    totalOrders: "—",
   });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    let cancelled = false;
 
-useEffect(() => {
-  let cancelled = false;
+    async function loadDashboard() {
+      try {
+        const savedUser = sessionStorage.getItem("fitzoneUser");
+        const token = sessionStorage.getItem("fitzoneToken");
 
-  async function loadDashboard() {
-    try {
-      const savedUser = sessionStorage.getItem("fitzoneUser");
-      const token = sessionStorage.getItem("fitzoneToken");
+        if (!savedUser || !token) {
+          router.push("/login");
+          return;
+        }
 
-      if (!savedUser || !token) {
-        router.push("/login");
-        return;
-      }
+        let user;
 
-      const user = JSON.parse(savedUser);
+        try {
+          user = JSON.parse(savedUser);
+        } catch {
+          sessionStorage.removeItem("fitzoneUser");
+          sessionStorage.removeItem("fitzoneToken");
+          router.push("/login");
+          return;
+        }
 
-      if (user.role !== "admin") {
-        router.push("/project");
-        return;
-      }
+        if (user.role !== "admin") {
+          router.push("/project");
+          return;
+        }
 
-      const apiBase = (
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-      ).replace(/\/$/, "");
+        const apiBase = (
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+        ).replace(/\/$/, "");
 
-      const apiUrl = `${apiBase}/api/admin/dashboard`;
-
-      const response = await fetch(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const contentType = response.headers.get("content-type") || "";
-
-      if (!contentType.includes("application/json")) {
-        const responseText = await response.text();
-
-        console.error("Invalid API response:", {
-          url: apiUrl,
-          status: response.status,
-          response: responseText.slice(0, 300),
+        const response = await fetch(`${apiBase}/api/admin/dashboard`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
 
-        throw new Error(`Invalid API response. HTTP ${response.status}`);
-      }
+        const contentType = response.headers.get("content-type") || "";
+        const data = contentType.includes("application/json")
+          ? await response.json()
+          : null;
 
-      const data = await response.json();
+        if (response.status === 401) {
+          sessionStorage.removeItem("fitzoneToken");
+          sessionStorage.removeItem("fitzoneUser");
+          router.push("/login");
+          return;
+        }
 
-      if (response.status === 401) {
-        sessionStorage.removeItem("fitzoneToken");
-        sessionStorage.removeItem("fitzoneUser");
-        router.push("/login");
-        return;
-      }
+        if (!response.ok) {
+          throw new Error(
+            data?.message || `Dashboard request failed (${response.status}).`
+          );
+        }
 
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to load dashboard.");
-      }
+        if (!data?.success || !data.stats) {
+          throw new Error("Invalid dashboard response from backend.");
+        }
 
-      if (!data.success || !data.stats || typeof data.stats !== "object") {
-        throw new Error("Invalid dashboard response from backend.");
-      }
+        if (cancelled) return;
 
-      if (cancelled) return;
+        const apiStats = data.stats;
+        const growth = apiStats.memberGrowth || {};
 
-      const apiStats = data.stats;
+        setDashboardCounts({
+          totalMembers: Number(apiStats.totalMembers ?? 0),
+          totalClasses: Number(apiStats.totalClasses ?? 0),
+          totalTrainers: Number(apiStats.totalTrainers ?? 0),
+          totalOrders: Number(apiStats.totalOrders ?? 0),
+        });
 
-      const growth = apiStats.memberGrowth || {};
+        setMemberChart({
+          "7 days": normalizeRows(growth["7 days"]),
+          "30 days": normalizeRows(growth["30 days"]),
+          "12 months": normalizeRows(growth["12 months"]),
+        });
 
-      setDashboardCounts({
-        totalMembers: Number(apiStats.totalMembers ?? 0),
-        totalClasses: Number(apiStats.totalClasses ?? 0),
-        totalTrainers: Number(apiStats.totalTrainers ?? 0),
-        totalBookings: Number(apiStats.totalBookings ?? 0),
-      });
+        setBookingChartData(
+          Array.isArray(apiStats.bookingsByWorkout)
+            ? apiStats.bookingsByWorkout.map((row) => ({
+                name: row.name ?? row.workout ?? "Other",
+                bookings: Number(row.bookings ?? row.count ?? row.total ?? 0),
+              }))
+            : []
+        );
 
-      setMemberChart({
-        "7 days": normalizeRows(growth["7 days"]),
-        "30 days": normalizeRows(growth["30 days"]),
-        "12 months": normalizeRows(growth["12 months"]),
-      });
+        setClassChartData(
+          Array.isArray(apiStats.classDistribution)
+            ? apiStats.classDistribution.map((row) => ({
+                name: row.name ?? row.category ?? "Other",
+                value: Number(row.value ?? row.count ?? row.total ?? 0),
+              }))
+            : []
+        );
+      } catch (err) {
+        console.error("Dashboard error:", err);
 
-      setBookingChartData(
-        Array.isArray(apiStats.bookingsByWorkout)
-          ? apiStats.bookingsByWorkout.map((row) => ({
-              name: row.name ?? row.workout ?? "Other",
-              bookings: Number(
-                row.bookings ?? row.count ?? row.total ?? 0
-              ),
-            }))
-          : []
-      );
-
-      setClassChartData(
-        Array.isArray(apiStats.classDistribution)
-          ? apiStats.classDistribution.map((row) => ({
-              name: row.name ?? row.category ?? "Other",
-              value: Number(row.value ?? row.count ?? row.total ?? 0),
-            }))
-          : []
-      );
-    } catch (err) {
-      console.error("Dashboard error:", err);
-
-      if (!cancelled) {
-        setError(err.message || "Could not connect to the backend.");
-      }
-    } finally {
-      if (!cancelled) {
-        setLoading(false);
+        if (!cancelled) {
+          setError(err.message || "Could not connect to the backend.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
-  }
 
-  loadDashboard();
+    loadDashboard();
 
-  return () => {
-    cancelled = true;
-  };
-}, []);
-
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   const stats = initialStats.map((item) => ({
     ...item,
@@ -258,7 +255,7 @@ useEffect(() => {
           ? dashboardCounts.totalClasses
           : item.title === "Total Trainers"
             ? dashboardCounts.totalTrainers
-            : dashboardCounts.totalBookings,
+            : dashboardCounts.totalOrders,
   }));
 
   const chartTooltipStyle = {
@@ -270,18 +267,17 @@ useEffect(() => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 text-gray-900 transition-colors duration-300 dark:bg-[#0b0f0d] dark:text-white">
+    <div className="flex min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0b0f0d] dark:text-white">
       <AdminSidebar />
 
       <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-10">
-        {/* Main dashboard container with OUTER shadow */}
-        <div className="mx-auto max-w-7xl space-y-8 rounded-3xl border border-gray-200/70 bg-gradient-to-br from-white via-gray-50 to-lime-50/40 p-4 shadow-[0_15px_50px_rgba(0,0,0,0.10)] transition-all duration-300 hover:shadow-[0_20px_60px_rgba(120,168,23,0.10)] dark:border-[#29342c] dark:bg-none dark:bg-[#101612] dark:shadow-[0_15px_50px_rgba(0,0,0,0.40)] dark:hover:shadow-[0_20px_60px_rgba(0,0,0,0.50)] sm:p-6 lg:space-y-9 lg:p-8">
-          <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200/70 bg-white/80 p-5 shadow-[0_5px_18px_rgba(0,0,0,0.04)] dark:border-[#29342c] dark:bg-[#141a17]/80 dark:shadow-[0_5px_18px_rgba(0,0,0,0.18)]">
+        <div className="mx-auto max-w-7xl space-y-8 rounded-3xl border border-gray-200/70 bg-gradient-to-br from-white via-gray-50 to-lime-50/40 p-4 shadow-xl dark:border-[#29342c] dark:bg-none dark:bg-[#101612] sm:p-6 lg:p-8">
+          <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200/70 bg-white/80 p-5 dark:border-[#29342c] dark:bg-[#141a17]/80">
             <div>
               <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-lime-700 dark:text-[#C8FF3D]">
                 FITZONE ADMIN
               </p>
-              <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
+              <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
                 Dashboard
               </h1>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -289,11 +285,18 @@ useEffect(() => {
               </p>
             </div>
 
-          
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm hover:border-lime-500 dark:border-[#29342c]"
+            >
+              <RefreshCw size={17} />
+              Refresh
+            </button>
           </header>
 
           {error && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-[0_6px_20px_rgba(239,68,68,0.08)] dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
               <p className="font-bold">Could not load live dashboard data</p>
               <p className="mt-1 break-words">{error}</p>
             </div>
@@ -301,9 +304,7 @@ useEffect(() => {
 
           <section>
             <div className="mb-5">
-              <h2 className="text-xl font-extrabold text-gray-900 dark:text-white">
-                Dashboard Statistics
-              </h2>
+              <h2 className="text-xl font-extrabold">Dashboard Statistics</h2>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 A quick overview of your gym.
               </p>
@@ -317,32 +318,26 @@ useEffect(() => {
                   <Link
                     key={stat.title}
                     href={stat.path}
-                    className={`${cardClass} group relative overflow-hidden p-5 hover:-translate-y-1.5 hover:border-lime-500/70 hover:shadow-[0_18px_40px_rgba(120,168,23,0.18)] dark:hover:border-[#C8FF3D]/50 dark:hover:shadow-[0_18px_40px_rgba(200,255,61,0.08)]`}
+                    className={`${cardClass} group relative overflow-hidden p-5 hover:-translate-y-1.5 hover:border-lime-500/70`}
                   >
-                    <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-full bg-lime-100/50 transition-transform duration-300 group-hover:scale-125 dark:bg-[#C8FF3D]/[0.04]" />
+                    <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-full bg-lime-100/50 dark:bg-[#C8FF3D]/[0.04]" />
 
                     <div className="relative flex items-center justify-between">
-                      <div
-                        className={`${stat.bg} ${stat.color} rounded-2xl p-3.5 shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-md`}
-                      >
+                      <div className={`${stat.bg} ${stat.color} rounded-2xl p-3.5`}>
                         <Icon size={24} strokeWidth={2.2} />
                       </div>
-
                       <ArrowUpRight
                         size={20}
-                        className="text-gray-400 transition-all duration-300 group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-lime-700 dark:group-hover:text-[#C8FF3D]"
+                        className="text-gray-400 group-hover:text-lime-700 dark:group-hover:text-[#C8FF3D]"
                       />
                     </div>
 
                     <p className="relative mt-6 text-sm font-medium text-gray-500 dark:text-gray-400">
                       {stat.title}
                     </p>
-
-                    <h3 className="relative mt-2 text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">
+                    <h3 className="relative mt-2 text-3xl font-extrabold">
                       {stat.value}
                     </h3>
-
-                  
                   </Link>
                 );
               })}
@@ -356,7 +351,7 @@ useEffect(() => {
               <select
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
-                className="cursor-pointer rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium shadow-sm outline-none transition-all hover:border-lime-500 focus:ring-2 focus:ring-lime-500/20 dark:border-[#29342c] dark:bg-[#0b0f0d]"
+                className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-[#29342c] dark:bg-[#0b0f0d]"
               >
                 <option>7 days</option>
                 <option>30 days</option>
@@ -376,12 +371,10 @@ useEffect(() => {
                       <stop offset="95%" stopColor="#9FCC25" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-
                   <CartesianGrid strokeDasharray="3 3" stroke="#808080" opacity={0.18} />
                   <XAxis dataKey="label" tick={{ fill: "#888", fontSize: 12 }} axisLine={false} tickLine={false} />
                   <YAxis allowDecimals={false} tick={{ fill: "#888", fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={chartTooltipStyle} />
-
                   <Area
                     type="monotone"
                     dataKey="members"
@@ -389,13 +382,11 @@ useEffect(() => {
                     stroke="#78A817"
                     strokeWidth={3}
                     fill="url(#memberGradient)"
-                    activeDot={{ r: 6, fill: "#C8FF3D", stroke: "#78A817", strokeWidth: 2 }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
-
-              {!loading && !error && (memberChart[period] || []).length === 0 && (
-                <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+              {!loading && !error && memberChart[period].length === 0 && (
+                <p className="mt-2 text-center text-sm text-gray-500">
                   No member growth data available for this period.
                 </p>
               )}
@@ -405,30 +396,20 @@ useEffect(() => {
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <ChartCard
               title="Bookings by Class"
-              subtitle="Bookings grouped by workout type from Neon"
+              subtitle="Bookings grouped by workout type"
             >
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={bookingChartData}
-                    margin={{ top: 10, right: 5, left: -20, bottom: 5 }}
-                  >
+                  <BarChart data={bookingChartData} margin={{ top: 10, right: 5, left: -20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#808080" opacity={0.18} />
                     <XAxis dataKey="name" tick={{ fill: "#888", fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis allowDecimals={false} tick={{ fill: "#888", fontSize: 12 }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={chartTooltipStyle} />
-                    <Bar
-                      dataKey="bookings"
-                      name="Bookings"
-                      fill="#78A817"
-                      radius={[8, 8, 0, 0]}
-                      maxBarSize={55}
-                    />
+                    <Bar dataKey="bookings" name="Bookings" fill="#78A817" radius={[8, 8, 0, 0]} maxBarSize={55} />
                   </BarChart>
                 </ResponsiveContainer>
-
                 {!loading && !error && bookingChartData.length === 0 && (
-                  <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <p className="mt-2 text-center text-sm text-gray-500">
                     No booking data available yet.
                   </p>
                 )}
@@ -437,7 +418,7 @@ useEffect(() => {
 
             <ChartCard
               title="Class Distribution"
-              subtitle="Classes grouped by category from Neon"
+              subtitle="Classes grouped by category"
             >
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -460,23 +441,12 @@ useEffect(() => {
                         />
                       ))}
                     </Pie>
-
                     <Tooltip contentStyle={chartTooltipStyle} />
-
-                    <Legend
-                      verticalAlign="bottom"
-                      iconType="circle"
-                      formatter={(value) => (
-                        <span style={{ color: "var(--chart-label, #888)" }}>
-                          {value}
-                        </span>
-                      )}
-                    />
+                    <Legend verticalAlign="bottom" iconType="circle" />
                   </PieChart>
                 </ResponsiveContainer>
-
                 {!loading && !error && classChartData.length === 0 && (
-                  <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <p className="mt-2 text-center text-sm text-gray-500">
                     No class distribution data available yet.
                   </p>
                 )}
@@ -486,86 +456,74 @@ useEffect(() => {
 
           <section>
             <div className="mb-5">
-              <h2 className="text-xl font-extrabold text-gray-900 dark:text-white">
-                Quick Actions
-              </h2>
+              <h2 className="text-xl font-extrabold">Quick Actions</h2>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Quickly access your management pages.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-              <Link
-                href="/Admin/Members"
-                className={`${cardClass} group flex items-center gap-4 p-5 hover:-translate-y-1 hover:border-lime-500/70 hover:shadow-[0_16px_35px_rgba(120,168,23,0.16)] dark:hover:border-[#C8FF3D]/50`}
-              >
-                <div className="rounded-2xl bg-lime-100 p-3.5 text-lime-700 shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-md dark:bg-[#C8FF3D]/10 dark:text-[#C8FF3D]">
-                  <Users size={23} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 transition-colors group-hover:text-lime-700 dark:text-white dark:group-hover:text-[#C8FF3D]">
-                    Manage Members
-                  </h3>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    View registered members
-                  </p>
-                </div>
-                <ArrowUpRight className="ml-auto text-gray-400 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" size={18} />
-              </Link>
-
-              <Link
-                href="/Admin/Bookings"
-                className={`${cardClass} group flex items-center gap-4 p-5 hover:-translate-y-1 hover:border-lime-500/70 hover:shadow-[0_16px_35px_rgba(120,168,23,0.16)] dark:hover:border-[#C8FF3D]/50`}
-              >
-                <div className="rounded-2xl bg-purple-100 p-3.5 text-purple-600 shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-md dark:bg-purple-500/10 dark:text-purple-400">
-                  <CalendarCheck size={23} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 transition-colors group-hover:text-lime-700 dark:text-white dark:group-hover:text-[#C8FF3D]">
-                    Manage Bookings
-                  </h3>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Review class bookings
-                  </p>
-                </div>
-                <ArrowUpRight className="ml-auto text-gray-400 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" size={18} />
-              </Link>
-
-              <Link
-                href="/Admin/Classes"
-                className={`${cardClass} group flex items-center gap-4 p-5 hover:-translate-y-1 hover:border-lime-500/70 hover:shadow-[0_16px_35px_rgba(120,168,23,0.16)] dark:hover:border-[#C8FF3D]/50`}
-              >
-                <div className="rounded-2xl bg-blue-100 p-3.5 text-blue-600 shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-md dark:bg-blue-500/10 dark:text-blue-400">
-                  <Dumbbell size={23} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 transition-colors group-hover:text-lime-700 dark:text-white dark:group-hover:text-[#C8FF3D]">
-                    Manage Classes
-                  </h3>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    View gym classes
-                  </p>
-                </div>
-                <ArrowUpRight className="ml-auto text-gray-400 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" size={18} />
-              </Link>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {[
+                {
+                  title: "Manage Members",
+                  description: "View registered members",
+                  path: "/Admin/Members",
+                  icon: Users,
+                },
+                {
+                  title: "Manage Bookings",
+                  description: "Review class bookings",
+                  path: "/Admin/Bookings",
+                  icon: CalendarCheck,
+                },
+                {
+                  title: "Manage Classes",
+                  description: "View gym classes",
+                  path: "/Admin/classes",
+                  icon: Dumbbell,
+                },
+                {
+                  title: "Payments & Orders",
+                  description: "Review membership payments",
+                  path: "/Admin/Orders",
+                  icon: ShoppingBag,
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.path}
+                    href={item.path}
+                    className={`${cardClass} group flex items-center gap-4 p-5 hover:-translate-y-1 hover:border-lime-500/70`}
+                  >
+                    <div className="rounded-2xl bg-lime-100 p-3.5 text-lime-700 dark:bg-[#C8FF3D]/10 dark:text-[#C8FF3D]">
+                      <Icon size={23} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold">{item.title}</h3>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {item.description}
+                      </p>
+                    </div>
+                    <ArrowUpRight size={18} className="ml-auto text-gray-400" />
+                  </Link>
+                );
+              })}
             </div>
           </section>
 
-          <section
-            className={`${cardClass} flex items-start gap-4 border-l-4 border-l-lime-500 p-5 hover:shadow-[0_14px_35px_rgba(120,168,23,0.12)] dark:border-l-[#C8FF3D]`}
-          >
-            <div className="rounded-2xl bg-lime-100 p-3.5 text-lime-700 shadow-sm dark:bg-[#C8FF3D]/10 dark:text-[#C8FF3D]">
+          <section className={`${cardClass} flex items-start gap-4 border-l-4 border-l-lime-500 p-5 dark:border-l-[#C8FF3D]`}>
+            <div className="rounded-2xl bg-lime-100 p-3.5 text-lime-700 dark:bg-[#C8FF3D]/10 dark:text-[#C8FF3D]">
               {loading ? (
                 <RefreshCw size={23} className="animate-spin" />
-              ) : (
+              ) : error ? (
                 <Activity size={23} />
+              ) : (
+                <TrendingUp size={23} />
               )}
             </div>
-
             <div>
-              <h2 className="font-bold text-gray-900 dark:text-white">
-                System Status
-              </h2>
+              <h2 className="font-bold">System Status</h2>
               <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">
                 {loading
                   ? "Loading dashboard data from the backend..."
@@ -574,14 +532,9 @@ useEffect(() => {
                     : "Dashboard response loaded. Charts show the data returned by the admin API."}
               </p>
             </div>
-
-            <TrendingUp
-              className="ml-auto hidden text-lime-700 dark:text-[#C8FF3D] sm:block"
-              size={23}
-            />
           </section>
 
-          <footer className="rounded-xl border border-gray-200/70 bg-white/70 px-4 py-4 text-center text-xs text-gray-400 shadow-sm dark:border-[#29342c] dark:bg-[#141a17]/70">
+          <footer className="rounded-xl border border-gray-200/70 bg-white/70 px-4 py-4 text-center text-xs text-gray-400 dark:border-[#29342c] dark:bg-[#141a17]/70">
             <span className="font-bold text-lime-700 dark:text-[#C8FF3D]">
               FITZONE
             </span>{" "}
