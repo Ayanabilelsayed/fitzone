@@ -117,40 +117,55 @@ useEffect(() => {
     }, 15000);
 
     try {
-      // 1. Check authentication
+      // 1. Get saved authentication data
       const savedUser = sessionStorage.getItem("fitzoneUser");
       const token = sessionStorage.getItem("fitzoneToken");
 
+      console.log("SAVED USER:", savedUser);
+      console.log("TOKEN EXISTS:", !!token);
+
       if (!savedUser || !token) {
+        console.error("Authentication data is missing.");
         router.replace("/login");
         return;
       }
 
+      // 2. Parse user information
       let user;
 
       try {
         user = JSON.parse(savedUser);
-      } catch {
+      } catch (error) {
+        console.error("Invalid user data:", error);
+
         sessionStorage.removeItem("fitzoneUser");
         sessionStorage.removeItem("fitzoneToken");
+
         router.replace("/login");
         return;
       }
 
-      // 2. Check admin role
-      if (user.role !== "admin") {
+      console.log("DASHBOARD USER:", user);
+      console.log("DASHBOARD ROLE:", user?.role);
+
+      if (cancelled) return;
+
+      // 3. Check admin role
+      if (user?.role?.toLowerCase() !== "admin") {
+        console.error("Access denied. User role:", user?.role);
         router.replace("/project");
         return;
       }
 
-      // 3. Get API URL
+      // 4. Get production API URL
       const apiBase = (
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://localhost:5000"
       ).replace(/\/$/, "");
 
-      console.log("Dashboard request started:", apiBase);
+      console.log("DASHBOARD API:", apiBase);
 
-      // 4. Fetch dashboard data
+      // 5. Fetch dashboard data
       const response = await fetch(
         `${apiBase}/api/admin/dashboard`,
         {
@@ -163,32 +178,35 @@ useEffect(() => {
         }
       );
 
-      console.log("Dashboard response status:", response.status);
+      console.log("DASHBOARD STATUS:", response.status);
 
-      // 5. Read response
+      // 6. Read API response
       const contentType = response.headers.get("content-type") || "";
 
       const data = contentType.includes("application/json")
         ? await response.json()
         : null;
 
-      console.log("Dashboard response data:", data);
+      console.log("DASHBOARD RESPONSE:", data);
 
       if (cancelled) return;
 
-      // 6. Handle authentication errors
+      // 7. Handle unauthorized access
       if (response.status === 401) {
         sessionStorage.removeItem("fitzoneToken");
         sessionStorage.removeItem("fitzoneUser");
+
         router.replace("/login");
         return;
       }
 
       if (response.status === 403) {
-        throw new Error("Access denied. Admin permission is required.");
+        throw new Error(
+          "Access denied. Admin permission is required."
+        );
       }
 
-      // 7. Handle server errors
+      // 8. Handle other errors
       if (!response.ok) {
         throw new Error(
           data?.message ||
@@ -196,12 +214,14 @@ useEffect(() => {
         );
       }
 
-      // 8. Validate response
+      // 9. Validate response
       if (!data?.success || !data?.stats) {
-        throw new Error("Invalid dashboard response from backend.");
+        throw new Error(
+          "Invalid dashboard response from backend."
+        );
       }
 
-      // 9. Update dashboard statistics
+      // 10. Update dashboard statistics
       const apiStats = data.stats;
       const growth = apiStats.memberGrowth || {};
 
@@ -212,14 +232,14 @@ useEffect(() => {
         totalOrders: Number(apiStats.totalOrders ?? 0),
       });
 
-      // 10. Update member growth chart
+      // 11. Update member growth chart
       setMemberChart({
         "7 days": normalizeRows(growth["7 days"]),
         "30 days": normalizeRows(growth["30 days"]),
         "12 months": normalizeRows(growth["12 months"]),
       });
 
-      // 11. Update bookings chart
+      // 12. Update bookings chart
       setBookingChartData(
         Array.isArray(apiStats.bookingsByWorkout)
           ? apiStats.bookingsByWorkout.map((row) => ({
@@ -231,12 +251,14 @@ useEffect(() => {
           : []
       );
 
-      // 12. Update classes chart
+      // 13. Update classes chart
       setClassChartData(
         Array.isArray(apiStats.classDistribution)
           ? apiStats.classDistribution.map((row) => ({
               name: row.name ?? row.category ?? "Other",
-              value: Number(row.value ?? row.count ?? row.total ?? 0),
+              value: Number(
+                row.value ?? row.count ?? row.total ?? 0
+              ),
             }))
           : []
       );
@@ -250,7 +272,7 @@ useEffect(() => {
 
       if (err.name === "AbortError") {
         setError(
-          "The dashboard request timed out. Please check your backend server."
+          "The dashboard request timed out. Please check your backend."
         );
       } else {
         setError(
