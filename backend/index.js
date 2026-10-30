@@ -21,7 +21,7 @@ const app = express();
 // CORS configuration
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://fitzone-fullstack.vercel.app",
+  "https://fitzone-backend-eight.vercel.app",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 

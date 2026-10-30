@@ -25,19 +25,22 @@ export default function Login() {
 
     setIsLoading(true);
 
-    try {
-      const data = await apiRequest("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          email: email.trim(),
-          password,
-        }),
-      });
+     try {
+  const data = await apiRequest("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({
+      email: email.trim(),
+      password,
+    }),
+  });
 
-      if (!data.user) {
-        alert("Login succeeded, but user information was not returned.");
-        return;
-      }
+  console.log("LOGIN RESPONSE:", data);
+  console.log("USER ROLE:", data.user?.role);
+
+  if (!data.user) {
+    alert("Login succeeded, but user information was not returned.");
+    return;
+  }
 
       // Save user information
       sessionStorage.setItem(
