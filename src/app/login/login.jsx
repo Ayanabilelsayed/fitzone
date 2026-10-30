@@ -14,55 +14,73 @@ export default function Login() {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
 
-    if (loading) return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    setLoading(true);
+  if (loading) return;
 
-    try {
-      const data = await apiRequest("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
+  setLoading(true);
 
-      console.log("LOGIN RESPONSE:", data);
+  try {
+    const data = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+        password,
+      }),
+    });
 
-      if (!data?.user || !data?.token) {
-        alert(data?.message || "Login failed. Please try again.");
-        return;
-      }
+    console.log("LOGIN RESPONSE:", data);
 
-      // Save user information and token
-      sessionStorage.setItem(
-        "fitzoneUser",
-        JSON.stringify(data.user)
-      );
-
-      sessionStorage.setItem("fitzoneToken", data.token);
-
-      // Notify other components about authentication changes
-      window.dispatchEvent(new Event("fitzone-auth-changed"));
-
-      alert("Login successful!");
-
-      // Navigate according to user role
-      if (data.user.role?.toLowerCase() === "admin") {
-        router.push("/Admin/Dashbord");
-      } else {
-        router.push("/project");
-      }
-    } catch (error) {
-      console.error("Login Error:", error);
-      alert(error.message || "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
+    if (!data?.user || !data?.token) {
+      alert(data?.message || "Login failed. Please try again.");
+      return;
     }
-  };
+
+    // Save user information
+    sessionStorage.setItem(
+      "fitzoneUser",
+      JSON.stringify(data.user)
+    );
+
+    // Save authentication token
+    sessionStorage.setItem("fitzoneToken", data.token);
+
+    // Notify other components
+    window.dispatchEvent(new Event("fitzone-auth-changed"));
+
+    console.log("USER ROLE:", data.user.role);
+    console.log(
+      "SAVED USER:",
+      sessionStorage.getItem("fitzoneUser")
+    );
+    console.log(
+      "TOKEN EXISTS:",
+      !!sessionStorage.getItem("fitzoneToken")
+    );
+
+    alert("Login successful!");
+
+    // Navigate according to user role
+    if (data.user.role?.toLowerCase() === "admin") {
+      console.log("NAVIGATING TO ADMIN DASHBOARD");
+      router.push("/Admin/Dashbord");
+    } else {
+      console.log("NAVIGATING TO USER PROJECT");
+      router.push("/project");
+    }
+
+  } catch (error) {
+    console.error("Login Error:", error);
+    alert(error.message || "Something went wrong. Please try again.");
+
+  } finally {
+    setLoading(false);
+  }
+};
+
+       
 
   return (
     <div>
