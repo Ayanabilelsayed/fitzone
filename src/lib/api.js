@@ -1,6 +1,5 @@
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE_URL = "https://backend-seven-sand-89.vercel.app";
 
 export async function apiRequest(endpoint, options = {}) {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -12,6 +11,7 @@ export async function apiRequest(endpoint, options = {}) {
   });
 
   const contentType = response.headers.get("content-type") || "";
+
   const data = contentType.includes("application/json")
     ? await response.json()
     : null;
