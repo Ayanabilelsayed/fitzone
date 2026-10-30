@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -13,54 +14,60 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
-async function handleSubmit(event) {
-  event.preventDefault();
 
-  if (!email.trim() || !password) {
-    alert("Please fill in all fields");
-    return;
-  }
+  async function handleSubmit(event) {
+    event.preventDefault();
 
-  setIsLoading(true);
-
-  try {
-    const data = await apiRequest("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!data.user) {
-      alert("Login succeeded, but user information was not returned.");
+    if (!email.trim() || !password) {
+      alert("Please fill in all fields");
       return;
     }
 
-    // Save user information
-    sessionStorage.setItem("fitzoneUser", JSON.stringify(data.user));
+    setIsLoading(true);
 
-    // Save authentication token
-    if (data.token) {
-      sessionStorage.setItem("fitzoneToken", data.token);
+    try {
+      const data = await apiRequest("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
+      });
+
+      if (!data.user) {
+        alert("Login succeeded, but user information was not returned.");
+        return;
+      }
+
+      // Save user information
+      sessionStorage.setItem(
+        "fitzoneUser",
+        JSON.stringify(data.user)
+      );
+
+      // Save authentication token
+      if (data.token) {
+        sessionStorage.setItem("fitzoneToken", data.token);
+      }
+
+      // Notify the Header
+      window.dispatchEvent(new Event("fitzone-auth-changed"));
+
+      alert("Login successful!");
+
+      // Redirect based on user role
+      if (data.user.role === "admin") {
+        router.push("/Admin/Dashbord");
+      } else {
+        router.push("/project");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      alert(error.message || "Could not connect to the server.");
+    } finally {
+      setIsLoading(false);
     }
-
-    // Notify the Header
-    window.dispatchEvent(new Event("fitzone-auth-changed"));
-
-    alert("Login successful!");
-
-    // Redirect based on user role
-    if (data.user.role === "admin") {
-      router.push("/Admin/Dashbord");
-    } else {
-      router.push("/project");
-    }
-  } catch (error) {
-    console.error("Login error:", error);
-    alert(error.message || "Could not connect to the server.");
-  } finally {
-    setIsLoading(false);
   }
-}
 
   return (
     <main
@@ -76,6 +83,7 @@ async function handleSubmit(event) {
 
       {/* Login container */}
       <section className="relative z-10 mx-auto w-full max-w-md rounded-2xl border border-white/20 bg-[#0b0f0d]/95 p-6 text-white shadow-[0_0_30px_rgba(200,255,61,0.12),0_12px_40px_rgba(0,0,0,0.4)] backdrop-blur-md sm:p-8">
+
         {/* Logo */}
         <Link
           href="/"
@@ -97,6 +105,7 @@ async function handleSubmit(event) {
 
         {/* Login form */}
         <form onSubmit={handleSubmit} className="space-y-5">
+
           {/* Email */}
           <div>
             <label
@@ -107,6 +116,7 @@ async function handleSubmit(event) {
             </label>
 
             <input
+              suppressHydrationWarning
               id="email"
               name="email"
               type="email"
@@ -130,6 +140,7 @@ async function handleSubmit(event) {
 
             <div className="relative">
               <input
+                suppressHydrationWarning
                 id="password"
                 name="password"
                 type={showPassword ? "text" : "password"}
@@ -142,9 +153,14 @@ async function handleSubmit(event) {
               />
 
               <button
+                suppressHydrationWarning
                 type="button"
-                onClick={() => setShowPassword((previous) => !previous)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                onClick={() =>
+                  setShowPassword((previous) => !previous)
+                }
+                aria-label={
+                  showPassword ? "Hide password" : "Show password"
+                }
                 aria-pressed={showPassword}
                 className="absolute inset-y-0 right-3 flex items-center justify-center text-[#A5B0A8] transition hover:text-[#C8FF3D] focus:outline-none focus:text-[#C8FF3D]"
               >

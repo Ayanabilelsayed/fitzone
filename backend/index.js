@@ -18,8 +18,10 @@ const stripeWebhookRoutes = require("./routes/stripeWebhook");
 const app = express();
 
 // CORS configuration
+// CORS configuration
 const allowedOrigins = [
   "http://localhost:3000",
+  "https://fitzone-fullstack.vercel.app",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
@@ -30,6 +32,7 @@ app.use(
         return callback(null, true);
       }
 
+      console.error(`Not allowed by CORS: ${origin}`);
       return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
   })
