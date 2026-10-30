@@ -1,6 +1,7 @@
+import Membersadmin from "./Members";
 
-import Membersadmin from "./Members"
+export const dynamic = "force-dynamic";
 
-export default function Members(){
-    return <Membersadmin />
+export default function Members() {
+    return <Membersadmin />;
 }
