@@ -26,8 +26,25 @@ const allowedWorkouts = [
   "Full Body Workout",
 ];
 
+// Allowed booking times (must match the frontend).
+const allowedTimes = [
+  "08:00 AM",
+  "09:00 AM",
+  "10:00 AM",
+  "11:00 AM",
+  "12:00 PM",
+  "01:00 PM",
+  "02:00 PM",
+  "03:00 PM",
+  "04:00 PM",
+  "05:00 PM",
+  "06:00 PM",
+  "07:00 PM",
+];
+
 const createBooking = async (req, res) => {
   let client;
+  let transactionStarted = false;
 
   try {
     const {
@@ -40,10 +57,10 @@ const createBooking = async (req, res) => {
       termsAccepted,
     } = req.body;
 
-    // The user ID comes from the verified JWT.
+    // Get user ID from the verified JWT.
     const userId = req.user.id;
 
-    // Validate the selected plan.
+    // Validate membership plan.
     const selectedPlan = plans[planId];
 
     if (!selectedPlan) {
@@ -95,42 +112,34 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // Validate time.
+    // Validate booking time.
     if (
       typeof time !== "string" ||
-      !time.trim() ||
-      time.length > 20
+      !allowedTimes.includes(time.trim())
     ) {
       return res.status(400).json({
         message: "Please select a valid booking time.",
       });
     }
 
-    // Validate payment choice.
-    if (!["cash", "online"].includes(paymentMethod)) {
+    // Cash bookings only. Stripe checkout uses a separate endpoint.
+    if (paymentMethod !== "cash") {
       return res.status(400).json({
-        message: "Please select a valid payment method.",
+        message: "Please select cash payment.",
       });
     }
 
-    // Online payments are not available until a payment gateway is integrated.
-    if (paymentMethod === "online") {
-      return res.status(400).json({
-        message:
-          "Online payment is not available yet. Please select cash at the gym.",
-      });
-    }
-
+    // Validate terms acceptance.
     if (termsAccepted !== true) {
       return res.status(400).json({
         message: "You must accept the terms and conditions.",
       });
     }
 
-    // Connect to the database.
+    // Connect to database.
     client = await pool.connect();
 
-    // Get the real trainer from the database.
+    // Get the real active trainer from database.
     const trainerResult = await client.query(
       `SELECT id, name
        FROM trainers
@@ -145,39 +154,19 @@ const createBooking = async (req, res) => {
     }
 
     const trainer = trainerResult.rows[0];
-    const trainerName = trainer.name;
 
+    // Start transaction.
     await client.query("BEGIN");
+    transactionStarted = true;
 
-    // Prevent duplicate bookings for the same trainer, date, and time.
-    const existingBooking = await client.query(
-      `SELECT id
-       FROM bookings
-       WHERE trainer_id = $1
-         AND booking_date = $2
-         AND booking_time = $3
-         AND status <> 'cancelled'
-       LIMIT 1
-       FOR UPDATE`,
-      [trainer.id, date, time.trim()]
-    );
-
-    if (existingBooking.rows.length > 0) {
-      await client.query("ROLLBACK");
-
-      return res.status(409).json({
-        message:
-          "This trainer is already booked at that time. Please choose another time.",
-      });
-    }
-
-    // Create a pending subscription.
+    // Create pending subscription.
     const subscriptionResult = await client.query(
       `INSERT INTO subscriptions
         (user_id, plan_id, plan_name, price, duration_months,
          payment_method, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, plan_id, plan_name, price, payment_method, status, created_at`,
+       RETURNING id, plan_id, plan_name, price,
+                 payment_method, status, created_at`,
       [
         userId,
         planId,
@@ -191,7 +180,8 @@ const createBooking = async (req, res) => {
 
     const subscription = subscriptionResult.rows[0];
 
-    // Create the booking using the real trainer ID and name.
+    // Create booking.
+    // The database unique index prevents duplicate active bookings.
     const bookingResult = await client.query(
       `INSERT INTO bookings
         (subscription_id, user_id, trainer_id, trainer_name,
@@ -203,7 +193,7 @@ const createBooking = async (req, res) => {
         subscription.id,
         userId,
         trainer.id,
-        trainerName,
+        trainer.name,
         workout,
         date,
         time.trim(),
@@ -214,7 +204,9 @@ const createBooking = async (req, res) => {
 
     const booking = bookingResult.rows[0];
 
+    // Save both records together.
     await client.query("COMMIT");
+    transactionStarted = false;
 
     return res.status(201).json({
       message: "Booking request created successfully.",
@@ -222,12 +214,22 @@ const createBooking = async (req, res) => {
       booking,
     });
   } catch (error) {
-    if (client) {
+    // Roll back only if a transaction was started.
+    if (client && transactionStarted) {
       await client.query("ROLLBACK").catch(() => {});
     }
 
     console.error("Create booking error:", error.message);
 
+    // Trainer already has a booking at this date and time.
+    if (error.code === "23505") {
+      return res.status(409).json({
+        message:
+          "This trainer is already booked at that time. Please choose another time.",
+      });
+    }
+
+    // Foreign key violation.
     if (error.code === "23503") {
       return res.status(400).json({
         message:
@@ -235,6 +237,7 @@ const createBooking = async (req, res) => {
       });
     }
 
+    // Check constraint violation.
     if (error.code === "23514") {
       return res.status(400).json({
         message: "Some booking details are invalid.",

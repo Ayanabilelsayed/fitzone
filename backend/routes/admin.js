@@ -9,9 +9,14 @@ const {
   getMembers,
   getOverviewStats,
   getOrders,
+  getBookings,
+  updateBookingStatus,
 } = require("../controllers/adminController");
 
-router.get("/", authMiddleware, adminMiddleware, (req, res) => {
+// Protect all admin routes
+router.use(authMiddleware, adminMiddleware);
+
+router.get("/", (req, res) => {
   res.json({
     success: true,
     message: "Welcome to FITZONE Admin API",
@@ -19,25 +24,15 @@ router.get("/", authMiddleware, adminMiddleware, (req, res) => {
   });
 });
 
-router.get(
-  "/members",
-  authMiddleware,
-  adminMiddleware,
-  getMembers
-);
+router.get("/members", getMembers);
 
-router.get(
-  "/dashboard",
-  authMiddleware,
-  adminMiddleware,
-  getOverviewStats
-);
+router.get("/dashboard", getOverviewStats);
 
-router.get(
-  "/orders",
-  authMiddleware,
-  adminMiddleware,
-  getOrders
-);
+router.get("/orders", getOrders);
+
+// Bookings
+router.get("/bookings", getBookings);
+
+router.patch("/bookings/:id/status", updateBookingStatus);
 
 module.exports = router;

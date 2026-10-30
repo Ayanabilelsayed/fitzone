@@ -24,7 +24,7 @@ const getMembers = async (req, res) => {
   }
 };
 
-// Get dashboard statistics, including payment information
+// Get dashboard statistics
 const getOverviewStats = async (req, res) => {
   try {
     const [
@@ -41,14 +41,10 @@ const getOverviewStats = async (req, res) => {
       paymentsResult,
     ] = await Promise.all([
       pool.query("SELECT COUNT(*)::int AS total FROM users"),
-
       pool.query("SELECT COUNT(*)::int AS total FROM classes"),
-
       pool.query("SELECT COUNT(*)::int AS total FROM trainers"),
-
       pool.query("SELECT COUNT(*)::int AS total FROM bookings"),
 
-      // Member growth over the last 12 months
       pool.query(`
         SELECT
           TO_CHAR(months.month, 'Mon') AS label,
@@ -65,7 +61,6 @@ const getOverviewStats = async (req, res) => {
         ORDER BY months.month
       `),
 
-      // Member growth over the last 30 days
       pool.query(`
         SELECT
           TO_CHAR(days.day, 'DD Mon') AS label,
@@ -82,7 +77,6 @@ const getOverviewStats = async (req, res) => {
         ORDER BY days.day
       `),
 
-      // Member growth over the last 7 days
       pool.query(`
         SELECT
           TO_CHAR(days.day, 'Dy') AS label,
@@ -118,7 +112,6 @@ const getOverviewStats = async (req, res) => {
         ORDER BY value DESC
       `),
 
-      // Order totals
       pool.query(`
         SELECT
           COUNT(*)::int AS total_orders,
@@ -128,14 +121,16 @@ const getOverviewStats = async (req, res) => {
         FROM orders
       `),
 
-      // Only confirmed paid orders count as revenue
       pool.query(`
         SELECT
-          COALESCE(SUM(amount) FILTER (WHERE status = 'paid'), 0)::numeric
-            AS total_revenue,
-          COALESCE(SUM(amount) FILTER (
-            WHERE status = 'paid' AND currency = 'usd'
-          ), 0)::numeric AS usd_revenue
+          COALESCE(
+            SUM(amount) FILTER (WHERE status = 'paid'), 0
+          )::numeric AS total_revenue,
+          COALESCE(
+            SUM(amount) FILTER (
+              WHERE status = 'paid' AND currency = 'usd'
+            ), 0
+          )::numeric AS usd_revenue
         FROM orders
       `),
     ]);
@@ -179,7 +174,7 @@ const getOverviewStats = async (req, res) => {
   }
 };
 
-// Get orders and payment statuses for the admin
+// Get orders and payment statuses
 const getOrders = async (req, res) => {
   try {
     const result = await pool.query(`
@@ -201,8 +196,7 @@ const getOrders = async (req, res) => {
       FROM orders o
       JOIN users u ON u.id = o.user_id
       LEFT JOIN order_items oi ON oi.order_id = o.id
-      GROUP BY
-        o.id, u.full_name, u.email
+      GROUP BY o.id, u.full_name, u.email
       ORDER BY o.created_at DESC
       LIMIT 100
     `);
@@ -221,8 +215,122 @@ const getOrders = async (req, res) => {
   }
 };
 
+// Get all bookings with member, trainer, and subscription details
+const getBookings = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        b.id,
+        b.user_id,
+        u.full_name,
+        u.email,
+
+        b.subscription_id,
+        s.plan_id,
+        s.plan_name,
+        s.price,
+        s.payment_method,
+        s.status AS subscription_status,
+
+        b.trainer_id,
+        b.trainer_name,
+
+        b.workout,
+        b.booking_date,
+        b.booking_time,
+        b.terms_accepted,
+        b.status,
+        b.created_at
+
+      FROM bookings b
+      JOIN users u ON u.id = b.user_id
+      JOIN subscriptions s ON s.id = b.subscription_id
+
+      ORDER BY b.created_at DESC
+      LIMIT 200
+    `);
+
+    return res.status(200).json({
+      success: true,
+      total: result.rows.length,
+      bookings: result.rows,
+    });
+  } catch (error) {
+    console.error("Get bookings error:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load bookings.",
+    });
+  }
+};
+
+// Update booking status
+const updateBookingStatus = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    const { status } = req.body;
+
+    const allowedStatuses = [
+      "pending",
+      "confirmed",
+      "cancelled",
+      "completed",
+    ];
+
+    if (
+      !Number.isSafeInteger(bookingId) ||
+      bookingId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking ID.",
+      });
+    }
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid booking status.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE bookings
+        SET status = $1
+        WHERE id = $2
+        RETURNING id, status
+      `,
+      [status, bookingId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Booking status updated successfully.",
+      booking: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Update booking status error:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update booking status.",
+    });
+  }
+};
+
 module.exports = {
   getMembers,
   getOverviewStats,
   getOrders,
+  getBookings,
+  updateBookingStatus,
 };
