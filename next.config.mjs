@@ -1,7 +1,10 @@
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    cpus: 2,
+    cpus: 1,
+    staticGenerationMaxConcurrency: 1,
+    webpackMemoryOptimizations: true,
   },
 
   images: {

@@ -104,142 +104,200 @@ export default function OverviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
+useEffect(() => {
+  let cancelled = false;
+  const controller = new AbortController();
 
-    async function loadDashboard() {
+  async function loadDashboard() {
+    setLoading(true);
+    setError("");
+
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 15000);
+
+    try {
+      // 1. Check authentication
+      const savedUser = sessionStorage.getItem("fitzoneUser");
+      const token = sessionStorage.getItem("fitzoneToken");
+
+      if (!savedUser || !token) {
+        router.replace("/login");
+        return;
+      }
+
+      let user;
+
       try {
-        const savedUser = sessionStorage.getItem("fitzoneUser");
-        const token = sessionStorage.getItem("fitzoneToken");
+        user = JSON.parse(savedUser);
+      } catch {
+        sessionStorage.removeItem("fitzoneUser");
+        sessionStorage.removeItem("fitzoneToken");
+        router.replace("/login");
+        return;
+      }
 
-        if (!savedUser || !token) {
-          router.push("/login");
-          return;
-        }
+      // 2. Check admin role
+      if (user.role !== "admin") {
+        router.replace("/project");
+        return;
+      }
 
-        let user;
+      // 3. Get API URL
+      const apiBase = (
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+      ).replace(/\/$/, "");
 
-        try {
-          user = JSON.parse(savedUser);
-        } catch {
-          sessionStorage.removeItem("fitzoneUser");
-          sessionStorage.removeItem("fitzoneToken");
-          router.push("/login");
-          return;
-        }
+      console.log("Dashboard request started:", apiBase);
 
-        if (user.role !== "admin") {
-          router.push("/project");
-          return;
-        }
-
-        const apiBase = (
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-        ).replace(/\/$/, "");
-
-        const response = await fetch(`${apiBase}/api/admin/dashboard`, {
+      // 4. Fetch dashboard data
+      const response = await fetch(
+        `${apiBase}/api/admin/dashboard`,
+        {
+          method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
+            Accept: "application/json",
           },
-        });
-
-        const contentType = response.headers.get("content-type") || "";
-        const data = contentType.includes("application/json")
-          ? await response.json()
-          : null;
-
-        if (response.status === 401) {
-          sessionStorage.removeItem("fitzoneToken");
-          sessionStorage.removeItem("fitzoneUser");
-          router.push("/login");
-          return;
+          signal: controller.signal,
         }
+      );
 
-        if (!response.ok) {
-          throw new Error(
-            data?.message || `Dashboard request failed (${response.status}).`
-          );
-        }
+      console.log("Dashboard response status:", response.status);
 
-        if (!data?.success || !data.stats) {
-          throw new Error("Invalid dashboard response from backend.");
-        }
+      // 5. Read response
+      const contentType = response.headers.get("content-type") || "";
 
-        if (cancelled) return;
+      const data = contentType.includes("application/json")
+        ? await response.json()
+        : null;
 
-        const apiStats = data.stats;
-        const growth = apiStats.memberGrowth || {};
+      console.log("Dashboard response data:", data);
 
-        setDashboardCounts({
-          totalMembers: Number(apiStats.totalMembers ?? 0),
-          totalClasses: Number(apiStats.totalClasses ?? 0),
-          totalTrainers: Number(apiStats.totalTrainers ?? 0),
-          totalOrders: Number(apiStats.totalOrders ?? 0),
-        });
+      if (cancelled) return;
 
-        setMemberChart({
-          "7 days": normalizeRows(growth["7 days"]),
-          "30 days": normalizeRows(growth["30 days"]),
-          "12 months": normalizeRows(growth["12 months"]),
-        });
+      // 6. Handle authentication errors
+      if (response.status === 401) {
+        sessionStorage.removeItem("fitzoneToken");
+        sessionStorage.removeItem("fitzoneUser");
+        router.replace("/login");
+        return;
+      }
 
-        setBookingChartData(
-          Array.isArray(apiStats.bookingsByWorkout)
-            ? apiStats.bookingsByWorkout.map((row) => ({
-                name: row.name ?? row.workout ?? "Other",
-                bookings: Number(row.bookings ?? row.count ?? row.total ?? 0),
-              }))
-            : []
+      if (response.status === 403) {
+        throw new Error("Access denied. Admin permission is required.");
+      }
+
+      // 7. Handle server errors
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+          `Dashboard request failed (${response.status}).`
         );
+      }
 
-        setClassChartData(
-          Array.isArray(apiStats.classDistribution)
-            ? apiStats.classDistribution.map((row) => ({
-                name: row.name ?? row.category ?? "Other",
-                value: Number(row.value ?? row.count ?? row.total ?? 0),
-              }))
-            : []
+      // 8. Validate response
+      if (!data?.success || !data?.stats) {
+        throw new Error("Invalid dashboard response from backend.");
+      }
+
+      // 9. Update dashboard statistics
+      const apiStats = data.stats;
+      const growth = apiStats.memberGrowth || {};
+
+      setDashboardCounts({
+        totalMembers: Number(apiStats.totalMembers ?? 0),
+        totalClasses: Number(apiStats.totalClasses ?? 0),
+        totalTrainers: Number(apiStats.totalTrainers ?? 0),
+        totalOrders: Number(apiStats.totalOrders ?? 0),
+      });
+
+      // 10. Update member growth chart
+      setMemberChart({
+        "7 days": normalizeRows(growth["7 days"]),
+        "30 days": normalizeRows(growth["30 days"]),
+        "12 months": normalizeRows(growth["12 months"]),
+      });
+
+      // 11. Update bookings chart
+      setBookingChartData(
+        Array.isArray(apiStats.bookingsByWorkout)
+          ? apiStats.bookingsByWorkout.map((row) => ({
+              name: row.name ?? row.workout ?? "Other",
+              bookings: Number(
+                row.bookings ?? row.count ?? row.total ?? 0
+              ),
+            }))
+          : []
+      );
+
+      // 12. Update classes chart
+      setClassChartData(
+        Array.isArray(apiStats.classDistribution)
+          ? apiStats.classDistribution.map((row) => ({
+              name: row.name ?? row.category ?? "Other",
+              value: Number(row.value ?? row.count ?? row.total ?? 0),
+            }))
+          : []
+      );
+
+      console.log("Dashboard loaded successfully!");
+
+    } catch (err) {
+      if (cancelled) return;
+
+      console.error("Dashboard error:", err);
+
+      if (err.name === "AbortError") {
+        setError(
+          "The dashboard request timed out. Please check your backend server."
         );
-      } catch (err) {
-        console.error("Dashboard error:", err);
+      } else {
+        setError(
+          err.message || "Could not connect to the backend."
+        );
+      }
 
-        if (!cancelled) {
-          setError(err.message || "Could not connect to the backend.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+    } finally {
+      clearTimeout(timeoutId);
+
+      if (!cancelled) {
+        setLoading(false);
       }
     }
+  }
 
-    loadDashboard();
+  loadDashboard();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
-
-  const stats = initialStats.map((item) => ({
-    ...item,
-    value: loading
-      ? "..."
-      : item.title === "Total Members"
-        ? dashboardCounts.totalMembers
-        : item.title === "Total Classes"
-          ? dashboardCounts.totalClasses
-          : item.title === "Total Trainers"
-            ? dashboardCounts.totalTrainers
-            : dashboardCounts.totalOrders,
-  }));
-
-  const chartTooltipStyle = {
-    backgroundColor: "#141a17",
-    border: "1px solid #29342c",
-    borderRadius: "12px",
-    color: "#fff",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+  return () => {
+    cancelled = true;
+    controller.abort();
   };
+}, [router]);
+
+// Dashboard statistics
+const stats = initialStats.map((item) => ({
+  ...item,
+  value: loading
+    ? "..."
+    : item.title === "Total Members"
+      ? dashboardCounts.totalMembers
+      : item.title === "Total Classes"
+        ? dashboardCounts.totalClasses
+        : item.title === "Total Trainers"
+          ? dashboardCounts.totalTrainers
+          : dashboardCounts.totalOrders,
+}));
+
+// Chart tooltip style
+const chartTooltipStyle = {
+  backgroundColor: "#141a17",
+  border: "1px solid #29342c",
+  borderRadius: "12px",
+  color: "#fff",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+};
+
 
   return (
     <div className="flex min-h-screen bg-gray-50 text-gray-900 dark:bg-[#0b0f0d] dark:text-white">
