@@ -21,23 +21,25 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:3000",
   "https://fitzone-fullstack.vercel.app",
-  "https://fitzone-fullstack-1s5m1luiw-aya802168-9963s-projects.vercel.app",
+  "https://fitzone-fullstack-qfdsnwoqq-aya802168-9963s-projects.vercel.app",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+    console.error(`Not allowed by CORS: ${origin}`);
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
 
-      console.error(`Not allowed by CORS: ${origin}`);
-      return callback(new Error(`Not allowed by CORS: ${origin}`));
-    },
-  })
-);
+app.use(cors(corsOptions));
 
 // Stripe webhook must receive the raw body.
 // Keep this route BEFORE express.json().
