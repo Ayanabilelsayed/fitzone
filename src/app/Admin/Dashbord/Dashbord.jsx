@@ -82,6 +82,7 @@ const normalizeRows = (rows) =>
     : [];
 
 export default function OverviewPage() {
+    console.log("ADMIN DASHBOARD COMPONENT MOUNTED");
   const router = useRouter();
 
   const [memberChart, setMemberChart] = useState({
