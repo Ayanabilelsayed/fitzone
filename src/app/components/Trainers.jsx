@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { apiRequest } from "@/lib/api";
 
 export default function Trainers() {
   const [trainers, setTrainers] = useState([]);
@@ -13,13 +14,7 @@ export default function Trainers() {
   useEffect(() => {
     async function fetchTrainers() {
       try {
-        const response = await fetch("http://localhost:5000/api/trainers");
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch trainers");
-        }
-
-        const data = await response.json();
+        const data = await apiRequest("/api/trainers");
         setTrainers(data.trainers);
       } catch (err) {
         console.error("Error fetching trainers:", err);
@@ -118,7 +113,7 @@ export default function Trainers() {
                   {/* View Profile Button */}
                   <div className="mt-6 flex justify-center">
                     <Link
-                      href={`/Trainers/${trainer.id}`}
+                      href={`/trainers/${trainer.id}`}
                       className="group/btn inline-flex items-center justify-center gap-2 rounded-full border border-[var(--primary)] px-6 py-2.5 text-sm font-bold text-[var(--primary)] transition-all duration-300 hover:bg-[var(--primary)] hover:text-[var(--background)] hover:shadow-lg hover:shadow-[var(--primary)]/20"
                     >
                       <span>View Profile</span>
