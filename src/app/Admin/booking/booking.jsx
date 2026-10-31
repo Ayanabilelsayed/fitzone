@@ -106,7 +106,7 @@ export default function BookingsPage() {
           return;
         }
 
-        const data = await apiRequest("/api/admin/bookings", {
+        const data = await apiRequest("/api/admin/booking", {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
