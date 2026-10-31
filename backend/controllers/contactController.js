@@ -1,3 +1,4 @@
+
 const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -24,6 +25,14 @@ const sendContactMessage = async (req, res) => {
       });
     }
 
+    // Check API key
+    if (!process.env.RESEND_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: "Resend API key is not configured.",
+      });
+    }
+
     // Send the contact message
     const { data, error } = await resend.emails.send({
       from: "FITZONE Contact <onboarding@resend.dev>",
@@ -38,20 +47,28 @@ ${message.trim()}`,
     });
 
     if (error) {
-      console.error("Resend error:", error);
+      console.error(
+        "Resend error:",
+        JSON.stringify(error, null, 2)
+      );
 
       return res.status(502).json({
         success: false,
-        message: "Could not send the message. Please try again later.",
+        message: error.message || "Could not send the message.",
       });
     }
+
+    console.log("Contact email sent successfully:", data?.id);
 
     return res.status(200).json({
       success: true,
       message: "Your message has been sent successfully.",
     });
   } catch (error) {
-    console.error("Contact error:", error);
+    console.error(
+      "Contact error:",
+      JSON.stringify(error, null, 2)
+    );
 
     return res.status(500).json({
       success: false,
