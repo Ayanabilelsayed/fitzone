@@ -8,6 +8,10 @@ export default function Contact() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Backend API URL
+  const API_BASE =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -23,7 +27,7 @@ export default function Contact() {
     const message = formData.get("message")?.toString().trim();
 
     try {
-      const response = await fetch("http://localhost:5000/api/contact", {
+      const response = await fetch(`${API_BASE}/api/contact`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -42,7 +46,7 @@ export default function Contact() {
     } catch (err) {
       setError(
         err.message === "Failed to fetch"
-          ? "Cannot connect to the server. Please make sure the backend is running."
+          ? "Cannot connect to the server. Please try again later."
           : err.message || "Something went wrong. Please try again."
       );
     } finally {
@@ -58,8 +62,6 @@ export default function Contact() {
       <div className="mx-auto max-w-7xl">
         {/* Section Heading */}
         <div className="mb-12 text-center">
-        
-
           <h1 className="text-3xl font-extrabold text-[var(--text)] sm:text-4xl">
             Get In Touch
           </h1>
