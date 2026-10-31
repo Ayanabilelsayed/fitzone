@@ -1,12 +1,13 @@
-
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 import { useEffect, useState } from "react";
 
 export default function Header() {
   const [userName, setUserName] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     function updateUserName() {
@@ -40,9 +41,11 @@ export default function Header() {
     sessionStorage.removeItem("fitzoneUser");
     sessionStorage.removeItem("fitzoneToken");
 
+    setUserName("");
+
     window.dispatchEvent(new Event("fitzone-auth-changed"));
 
-    window.location.href = "/project";
+    router.push("/login");
   };
 
   return (
