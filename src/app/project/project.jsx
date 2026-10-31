@@ -8,7 +8,7 @@ import Classes from "../components/Classes";
 import Trainers from "../components/Trainers";
 import Membership from "../components/Membership";
 import Contact from "../components/Contact";
-import WhatsAppButton from "./components/WhatsAppButton";
+import WhatsAppButton from "../components/WhatsAppButton";
 
 export default function UserHomePage() {
   return (
