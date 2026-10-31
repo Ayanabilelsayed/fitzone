@@ -2,15 +2,23 @@
 "use client";
 
 import { useState } from "react";
+import {
+  MapPin,
+  Phone,
+  Mail,
+  CheckCircle2,
+  Send,
+  Loader2,
+  MessageCircle,
+  Dumbbell,
+} from "lucide-react";
 
 export default function Contact() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Backend API URL
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,6 +33,12 @@ export default function Contact() {
     const name = formData.get("name")?.toString().trim();
     const email = formData.get("email")?.toString().trim();
     const message = formData.get("message")?.toString().trim();
+
+    if (!API_BASE) {
+      setError("Server configuration is missing. Please try again later.");
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch(`${API_BASE}/api/contact`, {
@@ -53,6 +67,24 @@ export default function Contact() {
       setLoading(false);
     }
   };
+
+  const contactItems = [
+    {
+      icon: MapPin,
+      label: "Location",
+      value: "123 Fitness Ave, Suite 400, New York, NY",
+    },
+    {
+      icon: Phone,
+      label: "Phone",
+      value: "+1 (555) 019-2834",
+    },
+    {
+      icon: Mail,
+      label: "Email",
+      value: "support@fitzone.com",
+    },
+  ];
 
   return (
     <section
@@ -89,62 +121,40 @@ export default function Contact() {
             </div>
 
             <div className="space-y-6">
-              {/* Location */}
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--primary-soft)] text-xl text-[var(--primary)]">
-                  📍
-                </div>
+              {contactItems.map((item) => {
+                const Icon = item.icon;
 
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                    Location
-                  </p>
+                return (
+                  <div key={item.label} className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--primary-soft)] text-[var(--primary)]">
+                      <Icon size={22} strokeWidth={1.8} />
+                    </div>
 
-                  <p className="mt-1 break-words font-semibold leading-6 text-[var(--text)]">
-                    123 Fitness Ave, Suite 400, New York, NY
-                  </p>
-                </div>
-              </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                        {item.label}
+                      </p>
 
-              {/* Phone */}
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--primary-soft)] text-xl text-[var(--primary)]">
-                  📞
-                </div>
-
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                    Phone
-                  </p>
-
-                  <p className="mt-1 font-semibold text-[var(--text)]">
-                    +1 (555) 019-2834
-                  </p>
-                </div>
-              </div>
-
-              {/* Email */}
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--primary-soft)] text-xl text-[var(--primary)]">
-                  ✉️
-                </div>
-
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                    Email
-                  </p>
-
-                  <p className="mt-1 break-all font-semibold text-[var(--text)]">
-                    support@fitzone.com
-                  </p>
-                </div>
-              </div>
+                      <p className="mt-1 break-words font-semibold leading-6 text-[var(--text)]">
+                        {item.value}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-light)] p-5">
-              <p className="font-bold text-[var(--text)]">
-                Your fitness journey starts here.
-              </p>
+              <div className="flex items-center gap-3">
+                <Dumbbell
+                  size={22}
+                  className="text-[var(--primary)]"
+                />
+
+                <p className="font-bold text-[var(--text)]">
+                  Your fitness journey starts here.
+                </p>
+              </div>
 
               <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
                 Contact our team and let us help you find the right training
@@ -157,8 +167,8 @@ export default function Contact() {
           <div className="rounded-3xl border border-[var(--border)] bg-[var(--card-bg)] p-6 shadow-sm sm:p-8 lg:p-10">
             {sent ? (
               <div className="flex min-h-[420px] flex-col items-center justify-center space-y-4 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--primary-soft)] text-2xl font-bold text-[var(--primary)]">
-                  ✓
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[var(--primary)]">
+                  <CheckCircle2 size={34} strokeWidth={1.8} />
                 </div>
 
                 <h2 className="text-2xl font-bold text-[var(--text)]">
@@ -184,6 +194,13 @@ export default function Contact() {
             ) : (
               <>
                 <div className="mb-8">
+                  <div className="mb-3 flex items-center gap-2 text-[var(--primary)]">
+                    <MessageCircle size={21} />
+                    <span className="text-xs font-bold uppercase tracking-wider">
+                      Contact Us
+                    </span>
+                  </div>
+
                   <h2 className="text-2xl font-bold text-[var(--text)]">
                     Send Us a Message
                   </h2>
@@ -267,9 +284,19 @@ export default function Contact() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full rounded-xl bg-[var(--button-bg)] py-4 text-sm font-bold text-[var(--button-text)] shadow-md transition-all duration-300 hover:bg-[var(--primary-hover)] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--button-bg)] py-4 text-sm font-bold text-[var(--button-text)] shadow-md transition-all duration-300 hover:bg-[var(--primary-hover)] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
                   >
-                    {loading ? "Sending..." : "Send Message →"}
+                    {loading ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={18} />
+                        Send Message
+                      </>
+                    )}
                   </button>
 
                   <p className="text-center text-xs leading-5 text-[var(--text-muted)]">
